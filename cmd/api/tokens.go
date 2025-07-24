@@ -164,7 +164,7 @@ func (app *application) createActivationTokenHandler(w http.ResponseWriter, r *h
 	// Email the user with their additional activation token.
 	app.background(func() {
 		data := map[string]any{
-			"activationToken": token.Plaintext,
+			"activationToken": token.PlainText,
 		}
 		// Since email addresses MAY be case sensitive, notice that we are sending this
 		// email using the address stored in our database for the user --- not to the
