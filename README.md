@@ -90,7 +90,8 @@ cinemesis/
 │   │   └── mailer.go
 │   ├── validator/              # Input validation utilities
 │   │   └── validator.go
-│   └── vcs.go                  # Version control system integration
+│   └── vcs/                    # Version control system integration
+│       └── vcs.go
 ├── migrations/                 # Database migration scripts
 │
 ├── .air.toml                   # Configuration for `air` (live-reloading tool)
@@ -140,37 +141,57 @@ The Cinemesis API exposes the following versioned (`/v1/`) endpoints:
 
 ### Request & Response Examples (Conceptual)
 
-#### `POST /v1/movies` Example
+#### `GET v1/movies?genres=adventure` Example
+
+**Response Body:**
+
+```json
+{
+  "movies": [
+    {
+      "id": 1,
+      "title": "Moana",
+      "year": 2015,
+      "runtime": "107 mins",
+      "genres": ["animation", "adventure"],
+      "version": 1
+    },
+    {
+      "id": 2,
+      "title": "Black Panther",
+      "year": 2018,
+      "runtime": "134 mins",
+      "genres": ["sci-fi", "action", "adventure"],
+      "version": 2
+    }
+  ]
+}
+```
+
+#### `POST /v1/users` Example
 
 **Request Body:**
 
 ```json
 {
-  "title": "Inception",
-  "director": "Christopher Nolan",
-  "year": 2010
+  "name": "Alice Smith",
+  "email": "alice@example.com",
+  "password": "pa55word"
 }
 ```
-
-#### `GET /v1/movies` Example
 
 **Response Body:**
 
 ```json
-[
-  {
-    "id": "1",
-    "title": "Inception",
-    "director": "Christopher Nolan",
-    "year": 2010
-  },
-  {
-    "id": "2",
-    "title": "The Matrix",
-    "director": "The Wachowskis",
-    "year": 1999
+{
+  "user": {
+    "id": 1,
+    "created_at": "2021-03-15T15:42:58+01:00",
+    "name": "Alice Smith",
+    "email": "alice@example.com",
+    "activated": false
   }
-]
+}
 ```
 
 ---
