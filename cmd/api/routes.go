@@ -24,6 +24,7 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodPut, "/v1/users/activated", app.activateUserHandler)
 	router.HandlerFunc(http.MethodPost, "/v1/tokens/reset", app.createPasswordResetTokenHandler)
 	router.HandlerFunc(http.MethodPost, "/v1/tokens/authentication", app.createAuthTokenHandler)
+	router.HandlerFunc(http.MethodPost, "/v1/tokens/activation", app.createActivationTokenHandler)
 
 	router.Handler(http.MethodGet, "/debug/vars", expvar.Handler())
 

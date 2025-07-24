@@ -1,0 +1,28 @@
+{{define "subject"}}Activate your Cinemesis account{{end}}
+{{define "plainBody"}}
+Hi,
+Your activation token is:
+{"token": "{{.activationToken}}"}
+Please note that this is a one-time use token and it will expire in 3 days.
+Thanks,
+The Cinemesis Team
+{{end}}
+{{define "htmlBody"}}
+<!doctype html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  </head>
+  <body>
+    <p>Hi,</p>
+    <p>Your activation token is:</p>
+    <pre><code>
+    {"token": "{{.activationToken}}"}
+    </code></pre> 
+    <p>Please note that this is a one-time use token and it will expire in 3 days.</p>
+    <p>Thanks,</p>
+    <p>The Cinemesis Team</p>
+  </body>
+</html>
+{{end}}
