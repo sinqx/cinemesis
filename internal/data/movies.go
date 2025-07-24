@@ -36,11 +36,9 @@ func ValidateMovie(v *validator.Validator, movie *Movie) {
 	v.Check(validator.Unique(movie.Genres), "genres", "must not contain duplicate values")
 }
 
-
 type MovieModel struct {
 	DB *sql.DB
 }
-
 
 func (m MovieModel) Insert(movie *Movie) error {
 
@@ -112,7 +110,7 @@ func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*M
 	rows, err := m.DB.QueryContext(ctx, query, args...)
 
 	if err != nil {
-		return nil, Metadata{}, err 
+		return nil, Metadata{}, err
 	}
 	defer rows.Close()
 

@@ -42,7 +42,6 @@ func (p *password) Set(plaintextPassword string) error {
 	return nil
 }
 
-
 func (p *password) Matches(plaintextPassword string) (bool, error) {
 	err := bcrypt.CompareHashAndPassword(p.hash, []byte(plaintextPassword))
 	if err != nil {
@@ -192,12 +191,12 @@ func (m UserModel) GetForToken(tokenScope, tokenPlaintext string) (*User, error)
         WHERE tokens.hash = $1
         AND tokens.scope = $2 
         AND tokens.expiry > $3`
-		
+
 	args := []any{tokenHash[:], tokenScope, time.Now()}
 	var user User
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	
+
 	err := m.DB.QueryRowContext(ctx, query, args...).Scan(
 		&user.ID,
 		&user.CreatedAt,
@@ -215,6 +214,6 @@ func (m UserModel) GetForToken(tokenScope, tokenPlaintext string) (*User, error)
 			return nil, err
 		}
 	}
-	
+
 	return &user, nil
 }

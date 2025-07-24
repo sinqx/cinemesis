@@ -68,7 +68,7 @@ func (m *Mailer) Send(recipient string, templateFile string, data any) error {
 	if err != nil {
 		return err
 	}
-	
+
 	msg := mail.NewMsg()
 	err = msg.To(recipient)
 	if err != nil {
