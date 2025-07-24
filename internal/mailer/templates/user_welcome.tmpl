@@ -1,0 +1,41 @@
+{{define "subject"}}Welcome to Cinemesis! 🎉{{end}}
+{{define "plainBody"}}
+Hi,
+Thanks for signing up for Cinemesis! We're thrilled to have you join our community of movie lovers!
+
+Your unique ID is: {{.userID}}.  Keep it handy!
+
+Please send a request to the `PUT /v1/users/activated` endpoint with the following JSON
+body to activate your account:
+{"token": "{{.activationToken}}"}
+Please note that this is a one-time use token and it will expire in 3 days.
+
+Best regards,
+The Cinemesis Team
+{{end}}
+{{define "htmlBody"}}
+<!doctype html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <style>
+        body { font-family: sans-serif; }
+        .highlight { color: #661cd6; font-weight: bold; } /* Accent color */
+    </style>
+</head>
+<body>
+    <p>Hi,</p>
+    <p>Thanks for signing up for Cinemesis! We're <span class="highlight">thrilled</span> to have you join our community of movie lovers!</p>
+    <p>Your unique ID is: <span class="highlight">{{.userID}}</span>. Keep it handy!</p>
+    <p>Please send a request to the <code>PUT /v1/users/activated</code> endpoint with the 
+    following JSON body to activate your account:</p>
+    <pre><code>
+    {"token": "{{.activationToken}}"}
+    </code></pre>
+    <p>Please note that this is a one-time use token and it will expire in 3 days.</p>
+    <p>Best regards,</p>
+    <p>The Cinemesis Team</p>
+</body>
+</html>
+{{end}}

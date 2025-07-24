@@ -1,0 +1,34 @@
+root = "."
+
+[env]
+  file = ".env"
+
+[build]
+  cmd = "go build -ldflags='-s' -o ./bin/main.exe ./cmd/api"
+  bin = "./bin/main.exe"
+  shell = false
+  delay = 300
+  include_ext = ["go", "env", "tmpl", "html"]
+  exclude_dir = ["bin", "vendor", "assets"]
+  send_interrupt = true
+  stop_on_error = true
+  kill_delay = "0s"
+  rerun = false
+  rerun_delay = 100
+
+[color]
+  app = ""
+  build = "yellow"
+  main = "magenta"
+  runner = "green"
+  watcher = "cyan"
+
+[log]
+  main_only = false
+  silent = true
+  time = false
+
+
+[screen]
+  clear_on_rebuild = false
+  keep_scroll = false
