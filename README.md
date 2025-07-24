@@ -1,10 +1,12 @@
 # Cinemesis
 
 Cinemesis is a **Go-based RESTful API** designed as a personal project to showcase modern Go development practices, including API design, routing, and robust data handling with authentication and email features. It provides a comprehensive set of endpoints for managing movie information, user accounts, and token-based authentication. This project serves as an excellent example of a well-structured Go application.
-##
-**Created with the help of the wonderful book "Let's Go Further" by Alex Edwards.**
+
 ##
 
+**Created with the help of the wonderful book "Let's Go Further" by Alex Edwards.**
+
+##
 
 ### Installation and Running
 
@@ -27,11 +29,11 @@ Cinemesis is a **Go-based RESTful API** designed as a personal project to showca
     SMTP_SENDER=sender@example.com
     ```
 
-      * **`PORT`**: The port on which the API server will listen (e.g., `8080`).
-      * **`POSTGRESQL_CONN`**: The connection string for your PostgreSQL database. **Remember to replace `user`, `password`, `host`, `port`, and `database_name` with your actual database credentials.** For local development, `sslmode=disable` is often sufficient.
-      * **`SMTP_USERNAME`**: The username for your SMTP server, used for sending emails (e.g., password resets, notifications).
-      * **`SMTP_PASSWORD`**: The password for your SMTP server.
-      * **`SMTP_SENDER`**: The email address from which automated emails will be sent.
+    - **`PORT`**: The port on which the API server will listen (e.g., `8080`).
+    - **`POSTGRESQL_CONN`**: The connection string for your PostgreSQL database. **Remember to replace `user`, `password`, `host`, `port`, and `database_name` with your actual database credentials.** For local development, `sslmode=disable` is often sufficient.
+    - **`SMTP_USERNAME`**: The username for your SMTP server, used for sending emails (e.g., password resets, notifications).
+    - **`SMTP_PASSWORD`**: The password for your SMTP server.
+    - **`SMTP_SENDER`**: The email address from which automated emails will be sent.
 
 3.  **Run the application using `make`:**
 
@@ -49,7 +51,7 @@ Cinemesis is a **Go-based RESTful API** designed as a personal project to showca
     make run/air
     ```
 
------
+---
 
 ## 📂 Project Structure
 
@@ -87,10 +89,10 @@ cinemesis/
 │   │   │   └── user_welcome.tmpl
 │   │   └── mailer.go
 │   ├── validator/              # Input validation utilities
-│   │   └── validator.go        
+│   │   └── validator.go
 │   └── vcs.go                  # Version control system integration
 ├── migrations/                 # Database migration scripts
-│       
+│
 ├── .air.toml                   # Configuration for `air` (live-reloading tool)
 ├── .env                        # Environment variables for local development
 ├── go.mod                      # Go modules dependency definition
@@ -99,42 +101,42 @@ cinemesis/
 └── README.md                   # Project documentation
 ```
 
------
+---
 
 ## 🛠️ Make Commands
 
 The `Makefile` provides several convenient commands for development and operations:
 
-  * **`make help`**: Prints this help message with all available commands.
-  * **`make run/api`**: Compiles and runs the main API application (`cmd/api`). This is the standard way to start the server.
-  * **`make run/build`**: Builds the `cmd/api` application, creating an executable binary.
-  * **`make run/air`**: Builds and runs the `cmd/api` application using `air` for automatic hot-reloading on code changes. Useful for rapid development.
-  * **`make db/psql`**: Connects to the PostgreSQL database using the `psql` client (requires `psql` to be installed and configured with `POSTGRESQL_CONN`).
-  * **`make db/migrations/new name=your_migration_name`**: Creates a new database migration file with the specified name. Replace `your_migration_name` with a descriptive name.
-  * **`make db/migrations/up`**: Applies all pending "up" database migrations to the connected database.
-  * **`make tidy`**: Tidies module dependencies and formats all `.go` files according to Go standards.
-  * **`make audit`**: Runs quality control checks on the codebase (e.g., linting, static analysis).
+- **`make help`**: Prints this help message with all available commands.
+- **`make run/api`**: Compiles and runs the main API application (`cmd/api`). This is the standard way to start the server.
+- **`make run/build`**: Builds the `cmd/api` application, creating an executable binary.
+- **`make run/air`**: Builds and runs the `cmd/api` application using `air` for automatic hot-reloading on code changes. Useful for rapid development.
+- **`make db/psql`**: Connects to the PostgreSQL database using the `psql` client (requires `psql` to be installed and configured with `POSTGRESQL_CONN`).
+- **`make db/migrations/new name=your_migration_name`**: Creates a new database migration file with the specified name. Replace `your_migration_name` with a descriptive name.
+- **`make db/migrations/up`**: Applies all pending "up" database migrations to the connected database.
+- **`make tidy`**: Tidies module dependencies and formats all `.go` files according to Go standards.
+- **`make audit`**: Runs quality control checks on the codebase (e.g., linting, static analysis).
 
------
+---
 
 ## 📌 API Endpoints
 
 The Cinemesis API exposes the following versioned (`/v1/`) endpoints:
 
-| Method   | Endpoint                          | Description                                                               | Permissions Required         |
-| :------- | :-------------------------------- | :------------------------------------------------------------------------ | :--------------------------- |
-| `GET`    | `/v1/healthcheck`                 | Simple health check endpoint.                                             | None                         |
-| `POST`   | `/v1/movies`                      | Adds a new movie to the collection.                                       | `movies:write`               |
-| `GET`    | `/v1/movies`                      | Retrieves a list of all movies.                                           | `movies:read`                |
-| `GET`    | `/v1/movies/:id`                  | Retrieves a single movie by its unique ID.                                | `movies:read`                |
-| `PATCH`  | `/v1/movies/:id`                  | Updates an existing movie identified by its ID.                           | `movies:write`               |
-| `DELETE` | `/v1/movies/:id`                  | Deletes a movie by its unique ID.                                         | `movies:write`               |
-| `POST`   | `/v1/users`                       | Registers a new user.                                                     | None                         |
-| `PUT`    | `/v1/users/activated`             | Activates a user account using an activation token.                       | None                         |
-| `POST`   | `/v1/tokens/reset`                | Creates a password reset token for a user.                                | None                         |
-| `POST`   | `/v1/tokens/authentication`       | Authenticates a user and issues an authentication token.                  | None                         |
-| `POST`   | `/v1/tokens/activation`           | (Re)generates an activation token for a user.                             | None                         |
-| `GET`    | `/debug/vars`                     | Exposes expvar metrics for application monitoring.                        | None (typically restricted)  |
+| Method   | Endpoint                    | Description                                              | Permissions Required        |
+| :------- | :-------------------------- | :------------------------------------------------------- | :-------------------------- |
+| `GET`    | `/v1/healthcheck`           | Simple health check endpoint.                            | None                        |
+| `POST`   | `/v1/movies`                | Adds a new movie to the collection.                      | `movies:write`              |
+| `GET`    | `/v1/movies`                | Retrieves a list of all movies.                          | `movies:read`               |
+| `GET`    | `/v1/movies/:id`            | Retrieves a single movie by its unique ID.               | `movies:read`               |
+| `PATCH`  | `/v1/movies/:id`            | Updates an existing movie identified by its ID.          | `movies:write`              |
+| `DELETE` | `/v1/movies/:id`            | Deletes a movie by its unique ID.                        | `movies:write`              |
+| `POST`   | `/v1/users`                 | Registers a new user.                                    | None                        |
+| `PUT`    | `/v1/users/activated`       | Activates a user account using an activation token.      | None                        |
+| `POST`   | `/v1/tokens/reset`          | Creates a password reset token for a user.               | None                        |
+| `POST`   | `/v1/tokens/authentication` | Authenticates a user and issues an authentication token. | None                        |
+| `POST`   | `/v1/tokens/activation`     | (Re)generates an activation token for a user.            | None                        |
+| `GET`    | `/debug/vars`               | Exposes expvar metrics for application monitoring.       | None (typically restricted) |
 
 ### Request & Response Examples (Conceptual)
 
@@ -171,4 +173,4 @@ The Cinemesis API exposes the following versioned (`/v1/`) endpoints:
 ]
 ```
 
------
+---
