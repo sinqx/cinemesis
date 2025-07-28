@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/lib/pq"
@@ -18,8 +19,18 @@ type Movie struct {
 	Title     string    `json:"title"`
 	Year      int32     `json:"year,omitzero"`
 	Runtime   Runtime   `json:"runtime,omitzero"`
-	Genres    []string  `json:"genres,omitempty"`
+	Genres    []Genre   `json:"genres,omitempty"`
 	Version   int32     `json:"version"`
+}
+
+type MovieModel struct {
+	DB              *sql.DB
+	GenreRepository GenreRepository
+}
+
+type GenreRepository interface {
+	GetIDsByNames(ctx context.Context, names []string) (*[]int64, error)
+	AttachGenres(ctx context.Context, movies []*Movie) error
 }
 
 func ValidateMovie(v *validator.Validator, movie *Movie) {
@@ -30,18 +41,9 @@ func ValidateMovie(v *validator.Validator, movie *Movie) {
 	v.Check(movie.Year <= int32(time.Now().Year()), "year", "must not be in the future")
 	v.Check(movie.Runtime != 0, "runtime", "must be provided")
 	v.Check(movie.Runtime > 0, "runtime", "must be a positive integer")
-	v.Check(movie.Genres != nil, "genres", "must be provided")
-	v.Check(len(movie.Genres) >= 1, "genres", "must contain at least 1 genre")
-	v.Check(len(movie.Genres) <= 5, "genres", "must not contain more than 5 genres")
-	v.Check(validator.Unique(movie.Genres), "genres", "must not contain duplicate values")
-}
-
-type MovieModel struct {
-	DB *sql.DB
 }
 
 func (m MovieModel) Insert(movie *Movie) error {
-
 	query := `
         INSERT INTO movies (title, year, runtime, genres) 
         VALUES ($1, $2, $3, $4)
@@ -54,6 +56,26 @@ func (m MovieModel) Insert(movie *Movie) error {
 
 	return m.DB.QueryRowContext(ctx, query, args...).Scan(&movie.ID, &movie.CreatedAt, &movie.Version)
 }
+
+// func (m *Movie) LoadGenres(genreModel GenreModel) error {
+// 	if len(m.GenreIDs) == 0 {
+// 		m.Genres = []Genre{}
+// 		return nil
+// 	}
+// 	genres, err := genreModel.GetByIDs(m.GenreIDs)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	m.Genres = genres
+// 	return nil
+// }
+// // Метод для извлечения ID из жанров
+// func (m *Movie) ExtractGenreIDs() {
+// 	m.GenreIDs = make([]int64, len(m.Genres))
+// 	for i, genre := range m.Genres {
+// 		m.GenreIDs[i] = genre.ID
+// 	}
+// }
 
 func (m MovieModel) Get(id int64) (*Movie, error) {
 	if id < 1 {
@@ -76,9 +98,8 @@ func (m MovieModel) Get(id int64) (*Movie, error) {
 		&movie.UpdatedAt,
 		&movie.Title,
 		&movie.Year,
-
 		&movie.Runtime,
-		pq.Array(&movie.Genres),
+		&movie.Genres,
 		&movie.Version,
 	)
 
@@ -93,49 +114,32 @@ func (m MovieModel) Get(id int64) (*Movie, error) {
 
 	return &movie, nil
 }
-
-func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*Movie, Metadata, error) {
-	query := fmt.Sprintf(`
-        SELECT count(*) OVER(), id, created_at, title, year, runtime, genres, version
-        FROM movies
-        WHERE (to_tsvector('simple', title) @@ plainto_tsquery('simple', $1) OR $1 = '') 
-        AND (genres @> $2 OR $2 = '{}')     
-        ORDER BY %s %s, id ASC
-        LIMIT $3 OFFSET $4`, filters.sortColumn(), filters.sortDirection())
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+func (m MovieModel) GetAll(title string, genreNames []string, filters Filters) ([]*Movie, Metadata, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	args := []any{title, pq.Array(genres), filters.limit(), filters.offset()}
-	rows, err := m.DB.QueryContext(ctx, query, args...)
-
-	if err != nil {
-		return nil, Metadata{}, err
-	}
-	defer rows.Close()
-
-	totalRecords := 0
-	movies := []*Movie{}
-
-	for rows.Next() {
-		var movie Movie
-		err := rows.Scan(
-			&totalRecords,
-			&movie.ID,
-			&movie.CreatedAt,
-			&movie.Title,
-			&movie.Year,
-			&movie.Runtime,
-			pq.Array(&movie.Genres),
-			&movie.Version,
-		)
+	var genreIDs []int64
+	if len(genreNames) > 0 {
+		ids, err := m.GenreRepository.GetIDsByNames(ctx, genreNames)
 		if err != nil {
 			return nil, Metadata{}, err
 		}
-		movies = append(movies, &movie)
+		if len(*ids) == 0 {
+			return []*Movie{}, Metadata{}, nil
+		}
+		genreIDs = *ids
 	}
-	if err = rows.Err(); err != nil {
+
+	movies, totalRecords, err := m.getMoviesFiltered(ctx, title, genreIDs, filters)
+	if err != nil {
 		return nil, Metadata{}, err
+	}
+
+	if len(movies) > 0 {
+		err = m.GenreRepository.AttachGenres(ctx, movies)
+		if err != nil {
+			return nil, Metadata{}, err
+		}
 	}
 
 	metadata := calculateMetadata(totalRecords, filters.Page, filters.PageSize)
@@ -143,10 +147,77 @@ func (m MovieModel) GetAll(title string, genres []string, filters Filters) ([]*M
 	return movies, metadata, nil
 }
 
+func (m MovieModel) getMoviesFiltered(ctx context.Context, title string, genreIDs []int64, filters Filters) ([]*Movie, int, error) {
+	conditions := []string{"(to_tsvector('simple', m.title) @@ plainto_tsquery('simple', $1) OR $1 = '')"}
+	args := []interface{}{title}
+
+	if len(genreIDs) > 0 {
+		conditions = append(conditions, fmt.Sprintf(`m.id IN (
+            SELECT movie_id
+            FROM movies_genres
+            WHERE genre_id = ANY($%d)
+            GROUP BY movie_id
+            HAVING COUNT(DISTINCT genre_id) = $%d
+        )`, len(args)+1, len(args)+2))
+		args = append(args, pq.Array(genreIDs))
+		args = append(args, len(genreIDs))
+	}
+
+	query := fmt.Sprintf(`
+        SELECT count(*) OVER(), m.id, m.created_at, m.updated_at, m.title, m.year, m.runtime, m.version
+        FROM movies m
+        WHERE %s
+        ORDER BY %s %s, m.id ASC
+        LIMIT $%d OFFSET $%d`,
+		strings.Join(conditions, " AND "),
+		filters.sortColumn(),
+		filters.sortDirection(),
+		len(args)+1, // $4 - LIMIT
+		len(args)+2, // $5 - OFFSET
+	)
+	args = append(args, filters.limit(), filters.offset())
+
+	rows, err := m.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var movies []*Movie
+	var totalRecords int
+
+	for rows.Next() {
+		var movie Movie
+		err := rows.Scan(
+			&totalRecords,
+			&movie.ID,
+			&movie.CreatedAt,
+			&movie.UpdatedAt,
+			&movie.Title,
+			&movie.Year,
+			&movie.Runtime,
+			&movie.Version,
+		)
+		if err != nil {
+			return nil, 0, err
+		}
+		// Инициализируем пустой срез жанров
+		movie.Genres = []Genre{}
+		movies = append(movies, &movie)
+	}
+
+	// Проверяем на ошибки итерации
+	if err = rows.Err(); err != nil {
+		return nil, 0, err
+	}
+
+	return movies, totalRecords, nil
+}
+
 func (m MovieModel) Update(movie *Movie) error {
 
 	query := `
-		UPDATE movies 
+		UPDATE movies
 		SET title = $1, year = $2, runtime = $3, genres = $4, updated_at = NOW(), version = version + 1
 		WHERE id = $5 and version = $6
 		RETURNING version`

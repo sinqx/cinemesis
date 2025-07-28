@@ -1,0 +1,12 @@
+ALTER TABLE movies DROP COLUMN IF EXISTS genres;
+
+CREATE TABLE IF NOT EXISTS genres (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE movies_genres (
+    movie_id BIGINT NOT NULL REFERENCES movies(id) ON DELETE CASCADE,
+    genre_id BIGINT NOT NULL REFERENCES genres(id) ON DELETE CASCADE,
+    PRIMARY KEY (movie_id, genre_id)
+);

@@ -12,14 +12,18 @@ var (
 
 type Models struct {
 	Movies      MovieModel
+	Genres      GenreModel
 	Tokens      TokenModel
 	Users       UserModel
 	Permissions PermissionModel
 }
 
 func NewModels(db *sql.DB) Models {
+	genreModel := GenreModel{DB: db}
+
 	return Models{
-		Movies:      MovieModel{DB: db},
+		Movies:      MovieModel{DB: db, GenreRepository: genreModel},
+		Genres:      genreModel,
 		Tokens:      TokenModel{DB: db},
 		Users:       UserModel{DB: db},
 		Permissions: PermissionModel{DB: db},

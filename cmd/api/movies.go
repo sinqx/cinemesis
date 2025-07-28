@@ -10,10 +10,10 @@ import (
 
 func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Request) {
 	var input struct {
-		Title   string       `json:"title"`
-		Year    int32        `json:"year"`
-		Runtime data.Runtime `json:"runtime"`
-		Genres  []string     `json:"genres"`
+		Title      string       `json:"title"`
+		Year       int32        `json:"year"`
+		Runtime    data.Runtime `json:"runtime"`
+		GenreNames []string     `json:"genres,omitempty"`
 	}
 
 	err := app.readJSON(w, r, &input)
@@ -22,18 +22,31 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	genresNames := input.GenreNames
+	v := validator.New()
+	if data.ValidateGenre(v, &genresNames); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
 	movie := &data.Movie{
 		Title:   input.Title,
 		Year:    input.Year,
 		Runtime: input.Runtime,
-		Genres:  input.Genres,
 	}
 
-	v := validator.New()
 	if data.ValidateMovie(v, movie); !v.Valid() {
 		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
+
+	genres, err := app.models.Genres.UpsertBatch(genresNames)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	movie.Genres = genres
 
 	err = app.models.Movies.Insert(movie)
 	if err != nil {
@@ -145,9 +158,6 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 	if input.Runtime != nil {
 		movie.Runtime = *input.Runtime
 	}
-	if input.Genres != nil {
-		movie.Genres = input.Genres
-	}
 
 	v := validator.New()
 	if data.ValidateMovie(v, movie); !v.Valid() {
@@ -194,3 +204,15 @@ func (app *application) deleteMovieHandler(w http.ResponseWriter, r *http.Reques
 		app.serverErrorResponse(w, r, err)
 	}
 }
+
+// func (app *application) listGenresHandler(w http.ResponseWriter, r *http.Request) {
+// 	genres, err := app.models.Movies.GetAllGenres()
+// 	if err != nil {
+// 		app.serverErrorResponse(w, r, err)
+// 		return
+// 	}
+// 	err = app.writeJSON(w, http.StatusOK, envelope{"genres": genres}, nil)
+// 	if err != nil {
+// 		app.serverErrorResponse(w, r, err)
+// 	}
+// }
