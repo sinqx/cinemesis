@@ -117,7 +117,7 @@ func (g GenreModel) UpsertBatch(genreNames []string) ([]Genre, error) {
 	return result, nil
 }
 
-func (g GenreModel) GetIDsByNames(ctx context.Context, genreNames []string) (*[]int64, error) {
+func (g GenreModel) GetIDsByNames(ctx context.Context, genreNames []string) ([]int64, error) {
 	const query = "SELECT id FROM genres WHERE name = ANY($1)"
 	rows, err := g.DB.QueryContext(ctx, query, pq.Array(genreNames))
 	if err != nil {
@@ -138,7 +138,7 @@ func (g GenreModel) GetIDsByNames(ctx context.Context, genreNames []string) (*[]
 		return nil, err
 	}
 
-	return &ids, nil
+	return ids, nil
 }
 
 func (g GenreModel) AttachGenres(ctx context.Context, movies []*Movie) error {
@@ -151,7 +151,7 @@ func (g GenreModel) AttachGenres(ctx context.Context, movies []*Movie) error {
 	}
 
 	placeholders := make([]string, len(movieIDs))
-	args := make([]interface{}, len(movieIDs))
+	args := make([]any, len(movieIDs))
 	for i, id := range movieIDs {
 		placeholders[i] = fmt.Sprintf("$%d", i+1)
 		args[i] = id
@@ -185,6 +185,35 @@ func (g GenreModel) AttachGenres(ctx context.Context, movies []*Movie) error {
 	}
 
 	return rows.Err()
+}
+
+func (g GenreModel) GetGenresByMovieID(ctx context.Context, movieID int64) ([]Genre, error) {
+	query := `
+		SELECT g.id, g.name
+		FROM genres g
+		INNER JOIN movies_genres mg ON mg.genre_id = g.id
+		WHERE mg.movie_id = $1`
+
+	rows, err := g.DB.QueryContext(ctx, query, movieID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var genres []Genre
+	for rows.Next() {
+		var g Genre
+		if err := rows.Scan(&g.ID, &g.Name); err != nil {
+			return nil, err
+		}
+		genres = append(genres, g)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return genres, nil
 }
 
 // func (g GenreModel) GetByStrings(genres []string) (*[]Genre, error) {

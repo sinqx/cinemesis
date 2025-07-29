@@ -29,7 +29,8 @@ type MovieModel struct {
 }
 
 type GenreRepository interface {
-	GetIDsByNames(ctx context.Context, names []string) (*[]int64, error)
+	GetIDsByNames(ctx context.Context, names []string) ([]int64, error)
+	GetGenresByMovieID(ctx context.Context, movieID int64) ([]Genre, error)
 	AttachGenres(ctx context.Context, movies []*Movie) error
 }
 
@@ -56,41 +57,19 @@ func (m MovieModel) Insert(movie *Movie) error {
 
 	return m.DB.QueryRowContext(ctx, query, args...).Scan(&movie.ID, &movie.CreatedAt, &movie.Version)
 }
-
-// func (m *Movie) LoadGenres(genreModel GenreModel) error {
-// 	if len(m.GenreIDs) == 0 {
-// 		m.Genres = []Genre{}
-// 		return nil
-// 	}
-// 	genres, err := genreModel.GetByIDs(m.GenreIDs)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	m.Genres = genres
-// 	return nil
-// }
-// // Метод для извлечения ID из жанров
-// func (m *Movie) ExtractGenreIDs() {
-// 	m.GenreIDs = make([]int64, len(m.Genres))
-// 	for i, genre := range m.Genres {
-// 		m.GenreIDs[i] = genre.ID
-// 	}
-// }
-
 func (m MovieModel) Get(id int64) (*Movie, error) {
 	if id < 1 {
 		return nil, ErrRecordNotFound
 	}
 
-	query := `
-		SELECT id, created_at, updated_at, title, year, runtime, genres, version
-		FROM movies
-		WHERE id = $1`
-
-	var movie Movie
-
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
+
+	var movie Movie
+	query := `
+		SELECT id, created_at, updated_at, title, year, runtime, version
+		FROM movies
+		WHERE id = $1`
 
 	err := m.DB.QueryRowContext(ctx, query, id).Scan(
 		&movie.ID,
@@ -99,21 +78,24 @@ func (m MovieModel) Get(id int64) (*Movie, error) {
 		&movie.Title,
 		&movie.Year,
 		&movie.Runtime,
-		&movie.Genres,
 		&movie.Version,
 	)
-
 	if err != nil {
-		switch {
-		case errors.Is(err, sql.ErrNoRows):
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrRecordNotFound
-		default:
-			return nil, err
 		}
+		return nil, err
 	}
+
+	genres, err := m.GenreRepository.GetGenresByMovieID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	movie.Genres = genres
 
 	return &movie, nil
 }
+
 func (m MovieModel) GetAll(title string, genreNames []string, filters Filters) ([]*Movie, Metadata, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -124,10 +106,10 @@ func (m MovieModel) GetAll(title string, genreNames []string, filters Filters) (
 		if err != nil {
 			return nil, Metadata{}, err
 		}
-		if len(*ids) == 0 {
+		if len(ids) == 0 {
 			return []*Movie{}, Metadata{}, nil
 		}
-		genreIDs = *ids
+		genreIDs = ids
 	}
 
 	movies, totalRecords, err := m.getMoviesFiltered(ctx, title, genreIDs, filters)
@@ -149,7 +131,7 @@ func (m MovieModel) GetAll(title string, genreNames []string, filters Filters) (
 
 func (m MovieModel) getMoviesFiltered(ctx context.Context, title string, genreIDs []int64, filters Filters) ([]*Movie, int, error) {
 	conditions := []string{"(to_tsvector('simple', m.title) @@ plainto_tsquery('simple', $1) OR $1 = '')"}
-	args := []interface{}{title}
+	args := []any{title}
 
 	if len(genreIDs) > 0 {
 		conditions = append(conditions, fmt.Sprintf(`m.id IN (
@@ -172,14 +154,19 @@ func (m MovieModel) getMoviesFiltered(ctx context.Context, title string, genreID
 		strings.Join(conditions, " AND "),
 		filters.sortColumn(),
 		filters.sortDirection(),
-		len(args)+1, // $4 - LIMIT
-		len(args)+2, // $5 - OFFSET
+		len(args)+1,
+		len(args)+2,
 	)
 	args = append(args, filters.limit(), filters.offset())
 
 	rows, err := m.DB.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, 0, err
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, 0, ErrRecordNotFound
+		default:
+			return nil, 0, err
+		}
 	}
 	defer rows.Close()
 
@@ -199,14 +186,13 @@ func (m MovieModel) getMoviesFiltered(ctx context.Context, title string, genreID
 			&movie.Version,
 		)
 		if err != nil {
-			return nil, 0, err
+			return nil, 0, ErrRecordNotFound
 		}
-		// Инициализируем пустой срез жанров
+
 		movie.Genres = []Genre{}
 		movies = append(movies, &movie)
 	}
 
-	// Проверяем на ошибки итерации
 	if err = rows.Err(); err != nil {
 		return nil, 0, err
 	}
