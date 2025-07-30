@@ -19,11 +19,9 @@ type Models struct {
 }
 
 func NewModels(db *sql.DB) Models {
-	genreModel := GenreModel{DB: db}
-
 	return Models{
-		Movies:      MovieModel{DB: db, GenreRepository: genreModel},
-		Genres:      genreModel,
+		Movies:      MovieModel{DB: db},
+		Genres:      GenreModel{DB: db},
 		Tokens:      TokenModel{DB: db},
 		Users:       UserModel{DB: db},
 		Permissions: PermissionModel{DB: db},

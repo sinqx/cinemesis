@@ -2,8 +2,11 @@ package data
 
 import (
 	"cinemesis/internal/validator"
+	"fmt"
 	"slices"
 	"strings"
+
+	"github.com/lib/pq"
 )
 
 type Filters struct {
@@ -61,4 +64,69 @@ func calculateMetadata(totalRecords, page, pageSize int) Metadata {
 		LastPage:     (totalRecords + pageSize - 1) / pageSize,
 		TotalRecords: totalRecords,
 	}
+}
+
+type QueryBuilder struct {
+	conditions []string
+	args       []any
+	argCount   int
+}
+
+func NewQueryBuilder() *QueryBuilder {
+	return &QueryBuilder{
+		conditions: make([]string, 0),
+		args:       make([]any, 0),
+		argCount:   0,
+	}
+}
+
+func (qb *QueryBuilder) AddTitleFilter(title string) *QueryBuilder {
+	qb.argCount++
+	qb.conditions = append(qb.conditions,
+		fmt.Sprintf("(to_tsvector('simple', m.title) @@ plainto_tsquery('simple', $%d) OR $%d = '')",
+			qb.argCount, qb.argCount))
+	qb.args = append(qb.args, title)
+	return qb
+}
+
+func (qb *QueryBuilder) AddGenreFilter(genreIDs []int64) *QueryBuilder {
+	if len(genreIDs) == 0 {
+		return qb
+	}
+
+	qb.argCount++
+	arrayArg := qb.argCount
+	qb.argCount++
+	countArg := qb.argCount
+
+	qb.conditions = append(qb.conditions, fmt.Sprintf(`
+		m.id IN (
+			SELECT movie_id FROM movies_genres
+			WHERE genre_id = ANY($%d)
+			GROUP BY movie_id
+			HAVING COUNT(DISTINCT genre_id) = $%d
+		)`, arrayArg, countArg))
+
+	qb.args = append(qb.args, pq.Array(genreIDs), len(genreIDs))
+	return qb
+}
+
+func (qb *QueryBuilder) Build(filters Filters) (string, []any) {
+	whereClause := strings.Join(qb.conditions, " AND ")
+
+	query := fmt.Sprintf(`
+		SELECT count(*) OVER(), m.id, m.created_at, m.updated_at, m.title, m.year, m.runtime, m.version
+		FROM movies m
+		WHERE %s
+		ORDER BY %s %s, m.id ASC
+		LIMIT $%d OFFSET $%d`,
+		whereClause,
+		filters.sortColumn(),
+		filters.sortDirection(),
+		qb.argCount+1,
+		qb.argCount+2,
+	)
+
+	args := append(qb.args, filters.limit(), filters.offset())
+	return query, args
 }

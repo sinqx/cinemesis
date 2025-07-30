@@ -32,89 +32,148 @@ type GenreModel struct {
 	DB *sql.DB
 }
 
-func (g GenreModel) UpsertBatch(genreNames []string) ([]Genre, error) {
-	placeholders := make([]string, len(genreNames))
-	args := make([]any, len(genreNames))
-	for i, name := range genreNames {
-		placeholders[i] = fmt.Sprintf("$%d", i+1)
-		args[i] = name
-	}
+func (g GenreModel) Insert(genreName string) error {
+	query := `
+	INSERT INTO genres (name)
+	VALUES ($1)
+	RETURNING id, name`
 
-	selectQuery := fmt.Sprintf(`
-		SELECT name, id FROM genres 
-		WHERE name IN (%s)`,
-		strings.Join(placeholders, ", "))
-
-	existingGenres := make(map[string]int64)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	rows, err := g.DB.QueryContext(ctx, selectQuery, args...)
+	return g.DB.QueryRowContext(ctx, query, genreName).Scan(genreName)
+}
+
+// UpsertBatch creates or updates a list of genres in the database.
+// It returns the ID and name for each genre provided.
+func (g GenreModel) UpsertBatch(ctx context.Context, tx *sql.Tx, genreNames []string) ([]Genre, error) {
+	if len(genreNames) == 0 {
+		return []Genre{}, nil
+	}
+
+	insertQuery := `
+        INSERT INTO genres (name)
+        SELECT UNNEST($1::text[])
+        ON CONFLICT (name) DO NOTHING`
+
+	_, err := tx.ExecContext(ctx, insertQuery, pq.Array(genreNames))
+	if err != nil {
+		return nil, err
+	}
+
+	selectQuery := `SELECT id, name FROM genres WHERE name = ANY($1)`
+	rows, err := tx.QueryContext(ctx, selectQuery, pq.Array(genreNames))
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
+	var genres []Genre
 	for rows.Next() {
-		var name string
-		var id int64
-		if err := rows.Scan(&name, &id); err != nil {
+		var genre Genre
+		if err := rows.Scan(&genre.ID, &genre.Name); err != nil {
 			return nil, err
 		}
-		existingGenres[name] = id
+		genres = append(genres, genre)
 	}
 
-	var newGenres []string
-	for _, name := range genreNames {
-		if _, exists := existingGenres[name]; !exists {
-			newGenres = append(newGenres, name)
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return genres, nil
+}
+
+func (g GenreModel) AttachGenresToMovie(ctx context.Context, tx *sql.Tx, movieID int64, genres []Genre) error {
+	if len(genres) == 0 {
+		return nil
+	}
+
+	query := `INSERT INTO movies_genres (movie_id, genre_id) VALUES `
+	args := []any{}
+	values := []string{}
+
+	for i, genre := range genres {
+		queryPart := fmt.Sprintf("($%d, $%d)", i*2+1, i*2+2)
+		values = append(values, queryPart)
+		args = append(args, movieID, genre.ID)
+	}
+
+	query += strings.Join(values, ", ")
+
+	return tx.QueryRowContext(ctx, query, args...).Scan(&movieID, &genres[0].ID)
+}
+
+func (g GenreModel) LoadGenresForMovies(ctx context.Context, movies []*Movie) error {
+	if len(movies) == 0 {
+		return nil
+	}
+
+	ids := make([]int64, 0, len(movies))
+	movieMap := make(map[int64]*Movie)
+	for _, movie := range movies {
+		ids = append(ids, movie.ID)
+		movie.Genres = []Genre{}
+		movieMap[movie.ID] = movie
+	}
+
+	query := `
+		SELECT mg.movie_id, g.id, g.name
+		FROM movies_genres mg
+		INNER JOIN genres g ON g.id = mg.genre_id
+		WHERE mg.movie_id = ANY($1)
+		ORDER BY g.name
+	`
+
+	rows, err := g.DB.QueryContext(ctx, query, pq.Array(ids))
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var movieID int64
+		var genre Genre
+
+		if err := rows.Scan(&movieID, &genre.ID, &genre.Name); err != nil {
+			return err
+		}
+
+		if movie, ok := movieMap[movieID]; ok {
+			movie.Genres = append(movie.Genres, genre)
 		}
 	}
 
-	if len(newGenres) > 0 {
-		var newPlaceholders []string
-		var newArgs []any
+	return rows.Err()
+}
 
-		for i, name := range newGenres {
-			newPlaceholders = append(newPlaceholders, fmt.Sprintf("($%d)", i+1))
-			newArgs = append(newArgs, name)
-		}
+func (g GenreModel) Get(ctx context.Context, id int64) (*Genre, error) {
+	if id < 1 {
+		return nil, ErrRecordNotFound
+	}
 
-		insertQuery := fmt.Sprintf(`
-			INSERT INTO genres (name) 
-			VALUES %s
-			ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
-			RETURNING id, name`,
-			strings.Join(newPlaceholders, ", "))
+	query := `
+		SELECT id, name
+		FROM genres
+		WHERE id = $1`
 
-		insertRows, err := g.DB.QueryContext(ctx, insertQuery, newArgs...)
-		if err != nil {
+	var genre Genre
+
+	err := g.DB.QueryRowContext(ctx, query, id).Scan(
+		&genre.ID,
+		&genre.Name,
+	)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
 			return nil, err
 		}
-		defer insertRows.Close()
-
-		for insertRows.Next() {
-			var name string
-			var id int64
-			if err := insertRows.Scan(&id, &name); err != nil {
-				return nil, err
-			}
-			existingGenres[name] = id
-		}
 	}
 
-	result := make([]Genre, 0, len(genreNames))
-	for _, name := range genreNames {
-		if id, exists := existingGenres[name]; exists {
-			result = append(result, Genre{
-				ID:   id,
-				Name: name,
-			})
-		}
-	}
-
-	return result, nil
+	return &genre, nil
 }
 
 func (g GenreModel) GetIDsByNames(ctx context.Context, genreNames []string) ([]int64, error) {
@@ -141,58 +200,13 @@ func (g GenreModel) GetIDsByNames(ctx context.Context, genreNames []string) ([]i
 	return ids, nil
 }
 
-func (g GenreModel) AttachGenres(ctx context.Context, movies []*Movie) error {
-	idMap := make(map[int64]*Movie, len(movies))
-	movieIDs := make([]int64, len(movies))
-
-	for i, movie := range movies {
-		idMap[movie.ID] = movie
-		movieIDs[i] = movie.ID
-	}
-
-	placeholders := make([]string, len(movieIDs))
-	args := make([]any, len(movieIDs))
-	for i, id := range movieIDs {
-		placeholders[i] = fmt.Sprintf("$%d", i+1)
-		args[i] = id
-	}
-
-	query := fmt.Sprintf(`
-        SELECT mg.movie_id, g.id, g.name
-        FROM movies_genres mg
-        JOIN genres g ON mg.genre_id = g.id
-        WHERE mg.movie_id IN (%s)
-        ORDER BY mg.movie_id, g.name`,
-		strings.Join(placeholders, ", "),
-	)
-
-	rows, err := g.DB.QueryContext(ctx, query, args...)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var movieID int64
-		var genre Genre
-		err := rows.Scan(&movieID, &genre.ID, &genre.Name)
-		if err != nil {
-			return err
-		}
-		if movie, exists := idMap[movieID]; exists {
-			movie.Genres = append(movie.Genres, genre)
-		}
-	}
-
-	return rows.Err()
-}
-
 func (g GenreModel) GetGenresByMovieID(ctx context.Context, movieID int64) ([]Genre, error) {
 	query := `
 		SELECT g.id, g.name
 		FROM genres g
 		INNER JOIN movies_genres mg ON mg.genre_id = g.id
-		WHERE mg.movie_id = $1`
+		WHERE mg.movie_id = $1
+		ORDER BY g.name`
 
 	rows, err := g.DB.QueryContext(ctx, query, movieID)
 	if err != nil {
@@ -216,129 +230,12 @@ func (g GenreModel) GetGenresByMovieID(ctx context.Context, movieID int64) ([]Ge
 	return genres, nil
 }
 
-// func (g GenreModel) GetByStrings(genres []string) (*[]Genre, error) {
-// 	if len(genreIDs) == 0 {
-// 		return &[]Genre{}, nil
-// 	}
-
-// 	placeholders := make([]string, len(genreIDs))
-// 	args := make([]any, len(genreIDs))
-// 	for i, id := range genreIDs {
-// 		placeholders[i] = fmt.Sprintf("$%d", i+1)
-// 		args[i] = id
-// 	}
-
-// 	query := fmt.Sprintf(`
-// 		SELECT id, name FROM genres g
-// 		WHERE id IN (%s)
-// 		ORDER BY name`,
-// 		strings.Join(placeholders, ", "))
-
-// 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-// 	defer cancel()
-
-// 	rows, err := g.DB.QueryContext(ctx, query, args...)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	defer rows.Close()
-
-// 	var genres []Genre
-// 	for rows.Next() {
-// 		var genre Genre
-// 		err := rows.Scan(&genre.ID, &genre.Name)
-// 		if err != nil {
-// 			return nil, err
-// 		}
-// 		genres = append(genres, genre)
-// 	}
-
-// 	return &genres, nil
-// }
-
-func (g GenreModel) GetByIDs(genreIDs []int64) (*[]Genre, error) {
-	if len(genreIDs) == 0 {
-		return &[]Genre{}, nil
-	}
-
-	placeholders := make([]string, len(genreIDs))
-	args := make([]any, len(genreIDs))
-	for i, id := range genreIDs {
-		placeholders[i] = fmt.Sprintf("$%d", i+1)
-		args[i] = id
-	}
-
-	query := fmt.Sprintf(`
-		SELECT id, name FROM genres g
-		WHERE id IN (%s)
-		ORDER BY name`,
-		strings.Join(placeholders, ", "))
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	rows, err := g.DB.QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var genres []Genre
-	for rows.Next() {
-		var genre Genre
-		err := rows.Scan(&genre.ID, &genre.Name)
-		if err != nil {
-			return nil, err
-		}
-		genres = append(genres, genre)
-	}
-
-	return &genres, nil
-}
-
-func (g GenreModel) Get(id int64) (*Genre, error) {
-	if id < 1 {
-		return nil, ErrRecordNotFound
-	}
-
-	query := `
-		SELECT id, name
-		FROM genres
-		WHERE id = $1`
-
-	var genre Genre
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-
-	err := g.DB.QueryRowContext(ctx, query, id).Scan(
-		&genre.ID,
-		&genre.Name,
-	)
-
-	if err != nil {
-		switch {
-		case errors.Is(err, sql.ErrNoRows):
-			return nil, ErrRecordNotFound
-		default:
-			return nil, err
-		}
-	}
-
-	return &genre, nil
-}
-
-func (g GenreModel) Delete(id int64) error {
+func (g GenreModel) Delete(ctx context.Context, id int64) error {
 	if id < 1 {
 		return ErrRecordNotFound
 	}
 
-	query := `
-        DELETE FROM genres
-        WHERE id = $1`
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
+	query := `DELETE FROM genres WHERE id = $1`
 
 	result, err := g.DB.ExecContext(ctx, query, id)
 	if err != nil {
@@ -354,5 +251,6 @@ func (g GenreModel) Delete(id int64) error {
 	if rowsAffected == 0 {
 		return ErrRecordNotFound
 	}
+
 	return nil
 }

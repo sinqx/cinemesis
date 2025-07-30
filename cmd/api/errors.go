@@ -28,18 +28,18 @@ func (app *application) errorResponse(w http.ResponseWriter, r *http.Request, st
 
 func (app *application) serverErrorResponse(w http.ResponseWriter, r *http.Request, err error) {
 	app.logError(r, err)
-	message := "the server encountered a problem and could not process your request"
+	const message = "the server encountered a problem and could not process your request"
 	app.errorResponse(w, r, http.StatusInternalServerError, message)
 }
 
 func (app *application) notFoundResponse(w http.ResponseWriter, r *http.Request) {
-	message := "the requested resource could not be found"
+	const message = "the requested resource could not be found"
 	app.errorResponse(w, r, http.StatusNotFound, message)
 }
 
 func (app *application) methodNotAllowedResponse(w http.ResponseWriter, r *http.Request) {
-	message := fmt.Sprintf("the %s method is not supported for this resource", r.Method)
-	app.errorResponse(w, r, http.StatusMethodNotAllowed, message)
+	const message = "the %s method is not supported for this resource"
+	app.errorResponse(w, r, http.StatusMethodNotAllowed, fmt.Sprintf(message, r.Method))
 }
 
 func (app *application) failedValidationResponse(w http.ResponseWriter, r *http.Request, errors map[string]string) {
@@ -47,31 +47,31 @@ func (app *application) failedValidationResponse(w http.ResponseWriter, r *http.
 }
 
 func (app *application) editConflictResponse(w http.ResponseWriter, r *http.Request) {
-	message := "unable to update the record due to an edit conflict, please try again"
+	const message = "unable to update the record due to an edit conflict, please try again"
 	app.errorResponse(w, r, http.StatusConflict, message)
 }
 
 func (app *application) invalidCredentialsResponse(w http.ResponseWriter, r *http.Request) {
-	message := "invalid authentication credentials"
+	const message = "invalid authentication credentials"
 	app.errorResponse(w, r, http.StatusUnauthorized, message)
 }
 
 func (app *application) invalidAuthenticationTokenResponse(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("WWW-Authenticate", "Bearer")
-	message := "invalid or missing authentication token"
+	const message = "invalid or missing authentication token"
 	app.errorResponse(w, r, http.StatusUnauthorized, message)
 }
 
 func (app *application) authenticationRequiredResponse(w http.ResponseWriter, r *http.Request) {
-	message := "you must be authenticated to access this resource"
+	const message = "you must be authenticated to access this resource"
 	app.errorResponse(w, r, http.StatusUnauthorized, message)
 }
 func (app *application) inactiveAccountResponse(w http.ResponseWriter, r *http.Request) {
-	message := "your user account must be activated to access this resource"
+	const message = "your user account must be activated to access this resource"
 	app.errorResponse(w, r, http.StatusForbidden, message)
 }
 
 func (app *application) notPermittedResponse(w http.ResponseWriter, r *http.Request) {
-	message := "your user account doesn't have the necessary permissions to access this resource"
+	const message = "your user account doesn't have the necessary permissions to access this resource"
 	app.errorResponse(w, r, http.StatusForbidden, message)
 }
