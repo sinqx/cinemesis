@@ -49,6 +49,17 @@ db/migrations/up:
 	@echo Running migrations...
 	migrate -path ./migrations -database ${POSTGRESQL_CONN} up
 
+## swag : create swagger docs
+.PHONY: swag
+swag:
+	@echo Create Swagger docs...
+	swag init -g cmd/api/main.go
+
+## swag/clean : clean swagger docs
+.PHONY: swag/clean
+swag/clean:
+	@echo Cleaning old Swagger docs...
+	@rm -rf docs
 
 # ==================================================================================== #
 # QUALITY CONTROL

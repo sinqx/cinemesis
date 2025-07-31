@@ -10,6 +10,17 @@ import (
 	"time"
 )
 
+// @Summary      Create a new movie
+// @Description  Creates a movie and stores it in the database
+// @Tags         Movies
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        movie  body      data.Movie  true  "Movie JSON"
+// @Success      201    {object}  data.Movie
+// @Failure      400    {object}  ErrorResponse
+// @Failure      500    {object}  ErrorResponse
+// @Router       /v1/movies [post]
 func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Title      string       `json:"title"`
@@ -84,6 +95,16 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 	}
 }
 
+// @Summary      Get a movie by ID
+// @Description  Returns the movie with the specified ID
+// @Tags         Movies
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id   path      int  true  "Movie ID"
+// @Success      200  {object}  data.Movie
+// @Failure      404  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /v1/movies/{id} [get]
 func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
 	if err != nil {
@@ -118,6 +139,18 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 	}
 }
 
+// @Summary      List movies
+// @Description  Returns a list of all movies (with optional filtering/pagination)
+// @Tags         Movies
+// @Security     BearerAuth
+// @Produce      json
+// @Param        title   query     string  false  "Filter by title"
+// @Param        genres  query     string  false  "Filter by comma-separated genres"
+// @Param        page    query     int     false  "Page number"
+// @Param        limit   query     int     false  "Items per page"
+// @Success      200     {array}   data.Movie
+// @Failure      500     {object}  ErrorResponse
+// @Router       /v1/movies [get]
 func (app *application) listMoviesHandler(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Title  string
@@ -170,6 +203,19 @@ func (app *application) listMoviesHandler(w http.ResponseWriter, r *http.Request
 	}
 }
 
+// @Summary      Update a movie
+// @Description  Updates the movie with the specified ID
+// @Tags         Movies
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id     path      int        true  "Movie ID"
+// @Param        movie  body      data.Movie true  "Updated movie data"
+// @Success      200    {object}  data.Movie
+// @Failure      400    {object}  ErrorResponse
+// @Failure      404    {object}  ErrorResponse
+// @Failure      500    {object}  ErrorResponse
+// @Router       /v1/movies/{id} [put]
 func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
 	if err != nil {
@@ -237,6 +283,16 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 	}
 }
 
+// @Summary      Delete a movie
+// @Description  Deletes the movie with the specified ID
+// @Tags         Movies
+// @Security     BearerAuth
+// @Produce      json
+// @Param        id   path      int  true  "Movie ID"
+// @Success      200  {object}  map[string]string
+// @Failure      404  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /v1/movies/{id} [delete]
 func (app *application) deleteMovieHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
 	if err != nil {

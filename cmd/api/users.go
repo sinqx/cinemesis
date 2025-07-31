@@ -8,6 +8,17 @@ import (
 	"time"
 )
 
+// @Summary      Register a new user
+// @Description  Registers a new user account and sends activation email
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Param        user  body      data.User  true  "User registration input"
+// @Success      202  {object}  map[string]string
+// @Failure      400  {object}  ErrorResponse
+// @Failure      422  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /v1/users [post]
 func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Name     string `json:"name"`
@@ -81,6 +92,17 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 	}
 }
 
+// @Summary      Activate user account
+// @Description  Activates a user account using a valid activation token
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Param        token  body      map[string]string  true  "Activation token"
+// @Success      200    {object}  data.User
+// @Failure      400    {object}  ErrorResponse
+// @Failure      422    {object}  ErrorResponse
+// @Failure      500    {object}  ErrorResponse
+// @Router       /v1/users/activated [put]
 func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		TokenPlaintext string `json:"token"`
@@ -134,6 +156,17 @@ func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 	}
 }
 
+// @Summary      Update user password
+// @Description  Changes the password for a user using a reset token
+// @Tags         Users
+// @Accept       json
+// @Produce      json
+// @Param        data  body      map[string]string  true  "Token and new password"
+// @Success      200   {object}  map[string]string
+// @Failure      400   {object}  ErrorResponse
+// @Failure      422   {object}  ErrorResponse
+// @Failure      500   {object}  ErrorResponse
+// @Router       /v1/users/password [put]
 func (app *application) updateUserPasswordHandler(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Password       string `json:"password"`

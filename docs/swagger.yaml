@@ -1,0 +1,472 @@
+definitions:
+  data.Genre:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  data.Movie:
+    properties:
+      genres:
+        items:
+          $ref: '#/definitions/data.Genre'
+        type: array
+      id:
+        type: integer
+      runtime:
+        type: integer
+      title:
+        type: string
+      updated_at:
+        type: string
+      version:
+        type: integer
+      year:
+        type: integer
+    type: object
+  data.Token:
+    properties:
+      expiry:
+        type: string
+      token:
+        type: string
+    type: object
+  data.User:
+    properties:
+      activated:
+        type: boolean
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  main.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: Backend API for Cinemesis project
+  termsOfService: http://swagger.io/terms/
+  title: Cinemesis API
+paths:
+  /v1/healthcheck:
+    get:
+      description: Returns server status and system information
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Health check
+      tags:
+      - Debug
+  /v1/movies:
+    get:
+      description: Returns a list of all movies (with optional filtering/pagination)
+      parameters:
+      - description: Filter by title
+        in: query
+        name: title
+        type: string
+      - description: Filter by comma-separated genres
+        in: query
+        name: genres
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/data.Movie'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List movies
+      tags:
+      - Movies
+    post:
+      consumes:
+      - application/json
+      description: Creates a movie and stores it in the database
+      parameters:
+      - description: Movie JSON
+        in: body
+        name: movie
+        required: true
+        schema:
+          $ref: '#/definitions/data.Movie'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/data.Movie'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a new movie
+      tags:
+      - Movies
+  /v1/movies/{id}:
+    delete:
+      description: Deletes the movie with the specified ID
+      parameters:
+      - description: Movie ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a movie
+      tags:
+      - Movies
+    get:
+      description: Returns the movie with the specified ID
+      parameters:
+      - description: Movie ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/data.Movie'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a movie by ID
+      tags:
+      - Movies
+    put:
+      consumes:
+      - application/json
+      description: Updates the movie with the specified ID
+      parameters:
+      - description: Movie ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated movie data
+        in: body
+        name: movie
+        required: true
+        schema:
+          $ref: '#/definitions/data.Movie'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/data.Movie'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a movie
+      tags:
+      - Movies
+  /v1/tokens/activation:
+    post:
+      consumes:
+      - application/json
+      description: Sends a new activation token to the user's email
+      parameters:
+      - description: Email address
+        in: body
+        name: email
+        required: true
+        schema:
+          additionalProperties:
+            type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      summary: Resend activation token
+      tags:
+      - Tokens
+  /v1/tokens/authentication:
+    post:
+      consumes:
+      - application/json
+      description: Validates credentials and returns an authentication token
+      parameters:
+      - description: Email and password
+        in: body
+        name: credentials
+        required: true
+        schema:
+          additionalProperties:
+            type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/data.Token'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      summary: Authenticate user and return token
+      tags:
+      - Tokens
+  /v1/tokens/password-reset:
+    post:
+      consumes:
+      - application/json
+      description: Sends a password reset token to the user's email
+      parameters:
+      - description: Email address
+        in: body
+        name: email
+        required: true
+        schema:
+          additionalProperties:
+            type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      summary: Create password reset token
+      tags:
+      - Tokens
+  /v1/users:
+    post:
+      consumes:
+      - application/json
+      description: Registers a new user account and sends activation email
+      parameters:
+      - description: User registration input
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/data.User'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      summary: Register a new user
+      tags:
+      - Users
+  /v1/users/activated:
+    put:
+      consumes:
+      - application/json
+      description: Activates a user account using a valid activation token
+      parameters:
+      - description: Activation token
+        in: body
+        name: token
+        required: true
+        schema:
+          additionalProperties:
+            type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/data.User'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      summary: Activate user account
+      tags:
+      - Users
+  /v1/users/password:
+    put:
+      consumes:
+      - application/json
+      description: Changes the password for a user using a reset token
+      parameters:
+      - description: Token and new password
+        in: body
+        name: data
+        required: true
+        schema:
+          additionalProperties:
+            type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      summary: Update user password
+      tags:
+      - Users
+securityDefinitions:
+  BearerAuth:
+    description: 'Enter your Bearer token in the format: Bearer <token>'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

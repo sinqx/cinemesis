@@ -3,7 +3,12 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"strings"
 )
+
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
 
 func (app *application) badRequestResponse(w http.ResponseWriter, r *http.Request, err error) {
 	app.errorResponse(w, r, http.StatusBadRequest, err.Error())
@@ -18,11 +23,18 @@ func (app *application) logError(r *http.Request, err error) {
 }
 
 func (app *application) errorResponse(w http.ResponseWriter, r *http.Request, status int, message any) {
-	env := envelope{"error": message}
+	statusText := http.StatusText(status)
+
+	env := envelope{
+		"status": strings.ToLower(strings.ReplaceAll(statusText, " ", "_")),
+		"code":   status,
+		"error":  message,
+	}
+
 	err := app.writeJSON(w, status, env, nil)
 	if err != nil {
 		app.logError(r, err)
-		w.WriteHeader(500)
+		w.WriteHeader(http.StatusInternalServerError)
 	}
 }
 

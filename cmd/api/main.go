@@ -17,6 +17,8 @@ import (
 	"sync"
 	"time"
 
+	_ "cinemesis/docs"
+
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
@@ -59,6 +61,21 @@ type application struct {
 	wg     sync.WaitGroup
 }
 
+// NOTE: Swaggo is not compatible with openAPI 3.0, it means
+// that in Authorization we need to pass the token in the header with the prefix "Bearer "
+
+//	@title			Cinemesis API
+//	@description	Backend API for Cinemesis project
+//	@termsOfService	http://swagger.io/terms/
+
+//	@contact.name	API Support
+//	@contact.url	http://www.swagger.io/support
+//	@contact.email	support@swagger.io
+
+// @securityDefinitions.apikey 	BearerAuth
+// @in							header
+// @name						Authorization
+// @description				Enter your Bearer token in the format: Bearer <token>
 func main() {
 	_ = godotenv.Load(".env")
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))

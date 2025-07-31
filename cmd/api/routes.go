@@ -1,10 +1,12 @@
 package main
 
 import (
+	_ "cinemesis/docs"
 	"expvar"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 func (app *application) routes() http.Handler {
@@ -12,6 +14,7 @@ func (app *application) routes() http.Handler {
 	router.NotFound = http.HandlerFunc(app.notFoundResponse)
 	router.MethodNotAllowed = http.HandlerFunc(app.methodNotAllowedResponse)
 
+	router.HandlerFunc(http.MethodGet, "/docs/*filepath", httpSwagger.WrapHandler)
 	router.HandlerFunc(http.MethodGet, "/v1/healthcheck", app.healthcheckHandler)
 
 	router.HandlerFunc(http.MethodPost, "/v1/movies", app.requirePermission("movies:read", app.createMovieHandler))
@@ -23,6 +26,7 @@ func (app *application) routes() http.Handler {
 
 	router.HandlerFunc(http.MethodPost, "/v1/users", app.registerUserHandler)
 	router.HandlerFunc(http.MethodPut, "/v1/users/activated", app.activateUserHandler)
+	router.HandlerFunc(http.MethodPost, "/v1/tokens/update", app.updateUserPasswordHandler)
 	router.HandlerFunc(http.MethodPost, "/v1/tokens/reset", app.createPasswordResetTokenHandler)
 	router.HandlerFunc(http.MethodPost, "/v1/tokens/authentication", app.createAuthTokenHandler)
 	router.HandlerFunc(http.MethodPost, "/v1/tokens/activation", app.createActivationTokenHandler)

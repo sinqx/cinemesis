@@ -4,6 +4,12 @@ import (
 	"net/http"
 )
 
+// @Summary      Health check
+// @Description  Returns server status and system information
+// @Tags         Debug
+// @Produce      json
+// @Success      200  {object}  map[string]interface{}
+// @Router       /v1/healthcheck [get]
 func (app *application) healthcheckHandler(w http.ResponseWriter, r *http.Request) {
 	env := envelope{
 		"status": "available",
