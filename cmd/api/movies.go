@@ -16,18 +16,13 @@ import (
 // @Security     BearerAuth
 // @Accept       json
 // @Produce      json
-// @Param        movie  body      data.Movie  true  "Movie JSON"
+// @Param        movie  body      data.MovieInput  true  "Movie JSON"
 // @Success      201    {object}  data.Movie
 // @Failure      400    {object}  ErrorResponse
 // @Failure      500    {object}  ErrorResponse
 // @Router       /v1/movies [post]
 func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Request) {
-	var input struct {
-		Title      string       `json:"title"`
-		Year       int32        `json:"year"`
-		Runtime    data.Runtime `json:"runtime"`
-		GenreNames []string     `json:"genres,omitempty"`
-	}
+	var input data.MovieInput
 
 	err := app.readJSON(w, r, &input)
 	if err != nil {
@@ -99,6 +94,7 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 // @Description  Returns the movie with the specified ID
 // @Tags         Movies
 // @Security     BearerAuth
+// @Accept       json
 // @Produce      json
 // @Param        id   path      int  true  "Movie ID"
 // @Success      200  {object}  data.Movie
@@ -140,16 +136,20 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 }
 
 // @Summary      List movies
-// @Description  Returns a list of all movies (with optional filtering/pagination)
+// @Description  Returns a filtered list of movies with optional sorting and pagination
 // @Tags         Movies
 // @Security     BearerAuth
+// @Accept       json
 // @Produce      json
-// @Param        title   query     string  false  "Filter by title"
-// @Param        genres  query     string  false  "Filter by comma-separated genres"
-// @Param        page    query     int     false  "Page number"
-// @Param        limit   query     int     false  "Items per page"
-// @Success      200     {array}   data.Movie
-// @Failure      500     {object}  ErrorResponse
+// @Param        title      query     string   false  "Filter by movie title"
+// @Param        genres     query     []string false  "Comma-separated list of genre names (e.g. genres=Action,Drama)"
+// @Param        page       query     int      false  "Page number (default is 1)"
+// @Param        page_size  query     int      false  "Page size (default is 20)"
+// @Param        sort       query     string   false  "Sort by field (id, title, year, runtime), use '-' for descending (e.g. -title)"
+// @Success      200        {object}  map[string]interface{}  "movies: []Movie, metadata: Metadata"
+// @Failure      400        {object}  ErrorResponse
+// @Failure      404        {object}  ErrorResponse
+// @Failure      500        {object}  ErrorResponse
 // @Router       /v1/movies [get]
 func (app *application) listMoviesHandler(w http.ResponseWriter, r *http.Request) {
 	var input struct {
@@ -157,6 +157,7 @@ func (app *application) listMoviesHandler(w http.ResponseWriter, r *http.Request
 		Genres []string
 		data.Filters
 	}
+
 	v := validator.New()
 	qs := r.URL.Query()
 	input.Title = app.readString(qs, "title", "")
@@ -287,6 +288,7 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 // @Description  Deletes the movie with the specified ID
 // @Tags         Movies
 // @Security     BearerAuth
+// @Accept       json
 // @Produce      json
 // @Param        id   path      int  true  "Movie ID"
 // @Success      200  {object}  map[string]string
