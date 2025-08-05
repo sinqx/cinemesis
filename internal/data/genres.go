@@ -17,6 +17,10 @@ type Genre struct {
 	Name string `json:"name"`
 }
 
+type GenreInput struct {
+	Name string `json:"name"`
+}
+
 func ValidateGenre(v *validator.Validator, genres *[]string) {
 	v.Check(genres != nil, "genres", "must be provided")
 	v.Check(len(*genres) >= 1, "genres", "must contain at least 1 genre")
@@ -102,6 +106,11 @@ func (g GenreModel) AttachGenresToMovie(ctx context.Context, tx *sql.Tx, movieID
 	query += strings.Join(values, ", ")
 
 	return tx.QueryRowContext(ctx, query, args...).Scan(&movieID, &genres[0].ID)
+}
+func (g GenreModel) DetachGenresFromMovie(ctx context.Context, tx *sql.Tx, movieID int64) error {
+	query := `DELETE FROM movies_genres WHERE movie_id = $1`
+	_, err := tx.ExecContext(ctx, query, movieID)
+	return err
 }
 
 func (g GenreModel) LoadGenresForMovies(ctx context.Context, movies []*Movie) error {
@@ -228,6 +237,49 @@ func (g GenreModel) GetGenresByMovieID(ctx context.Context, movieID int64) ([]Ge
 	}
 
 	return genres, nil
+}
+
+func (g GenreModel) GetAll(ctx context.Context) ([]Genre, error) {
+	query := `SELECT id, name FROM genres ORDER BY name`
+
+	rows, err := g.DB.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var genres []Genre
+	for rows.Next() {
+		var gen Genre
+		err := rows.Scan(&gen.ID, &gen.Name)
+		if err != nil {
+			return nil, err
+		}
+		genres = append(genres, gen)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return genres, nil
+}
+
+func (g GenreModel) Update(ctx context.Context, id int64, newName string) error {
+	query := `UPDATE genres SET name = $1 WHERE id = $2 RETURNING id`
+
+	var updatedID int64
+	err := g.DB.QueryRowContext(ctx, query, newName, id).Scan(&updatedID)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return ErrRecordNotFound
+		default:
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (g GenreModel) Delete(ctx context.Context, id int64) error {

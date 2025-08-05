@@ -40,6 +40,19 @@ definitions:
       year:
         type: integer
     type: object
+  data.MovieInput:
+    properties:
+      genres:
+        items:
+          type: string
+        type: array
+      runtime:
+        type: integer
+      title:
+        type: string
+      year:
+        type: integer
+    type: object
   data.RegisterInput:
     properties:
       email:
@@ -95,6 +108,303 @@ info:
   termsOfService: http://swagger.io/terms/
   title: Cinemesis API
 paths:
+  /v1/genres:
+    get:
+      consumes:
+      - application/json
+      description: Returns a list of all genres stored in the database.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/data.Genre'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get all genres
+      tags:
+      - Genres
+  /v1/genres/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes the genre with the specified ID
+      parameters:
+      - description: Genre ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a genre
+      tags:
+      - Genres
+    get:
+      consumes:
+      - application/json
+      description: Returns the genre with the specified ID
+      parameters:
+      - description: Genre ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/data.Genre'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a genre by ID
+      tags:
+      - Genres
+    patch:
+      consumes:
+      - application/json
+      description: Updates the genre with the specified ID
+      parameters:
+      - description: Genre ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated genre JSON
+        in: body
+        name: genre
+        required: true
+        schema:
+          $ref: '#/definitions/data.Genre'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/data.Genre'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a genre
+      tags:
+      - Genres
+  /v1/genres/attach/{id}:
+    patch:
+      consumes:
+      - application/json
+      description: Attaches the specified genres to the movie with the specified ID
+      parameters:
+      - description: Movie ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Genres to attach
+        in: body
+        name: genres
+        required: true
+        schema:
+          items:
+            type: string
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/data.Genre'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Attach genres to a movie
+      tags:
+      - Genres
+  /v1/genres/create:
+    post:
+      consumes:
+      - application/json
+      description: Creates a genre and stores it in the database
+      parameters:
+      - description: Genre JSON
+        in: body
+        name: genre
+        required: true
+        schema:
+          type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/data.Genre'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "409":
+          description: Genre with this name already exists
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a new genre
+      tags:
+      - Genres
+  /v1/genres/movie/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Returns a list of genres associated with the movie with the specified
+        ID
+      parameters:
+      - description: Movie ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/data.Genre'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get genres for a movie
+      tags:
+      - Genres
+  /v1/genres/movie/{id}/:
+    put:
+      consumes:
+      - application/json
+      description: Replaces the movie with the specified ID's genres with the ones
+        provided in the request body.
+      parameters:
+      - description: Movie ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: The new genres to associate with the movie
+        in: body
+        name: genres
+        required: true
+        schema:
+          items:
+            type: string
+          type: array
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/data.Movie'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Replace a movie's genres
+      tags:
+      - Movies
   /v1/healthcheck:
     get:
       description: Returns server status and system information
@@ -174,7 +484,7 @@ paths:
         name: movie
         required: true
         schema:
-          $ref: '#/definitions/data.Movie'
+          $ref: '#/definitions/data.MovieInput'
       produces:
       - application/json
       responses:
