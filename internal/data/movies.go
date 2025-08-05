@@ -128,7 +128,7 @@ func (m MovieModel) GetFiltered(ctx context.Context, title string, genreIDs []in
 	return movies, metadata, nil
 }
 
-func (m MovieModel) Update(ctx context.Context, movie *Movie) error {
+func (m MovieModel) Update(ctx context.Context, tx *sql.Tx, movie *Movie) error {
 
 	query := `
 		UPDATE movies
@@ -138,7 +138,7 @@ func (m MovieModel) Update(ctx context.Context, movie *Movie) error {
 
 	args := []any{movie.Title, movie.Year, movie.Runtime, pq.Array(movie.Genres), movie.ID, movie.Version}
 
-	err := m.DB.QueryRowContext(ctx, query, args...).Scan(&movie.Version)
+	err := tx.QueryRowContext(ctx, query, args...).Scan(&movie.Version)
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):

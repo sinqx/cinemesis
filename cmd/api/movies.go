@@ -239,10 +239,10 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 	}
 
 	var input struct {
-		Title   *string       `json:"title"`
-		Year    *int32        `json:"year"`
-		Runtime *data.Runtime `json:"runtime"`
-		Genres  []data.Genre  `json:"genres"`
+		Title      *string       `json:"title"`
+		Year       *int32        `json:"year"`
+		Runtime    *data.Runtime `json:"runtime"`
+		GenreNames *[]string     `json:"genres,omitempty"`
 	}
 
 	err = app.readJSON(w, r, &input)
@@ -267,7 +267,31 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	err = app.models.Movies.Update(ctx, movie)
+	tx, err := app.models.Movies.DB.BeginTx(ctx, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+	defer tx.Rollback()
+
+	if input.GenreNames != nil {
+		genresNames := *input.GenreNames
+		v := validator.New()
+		if data.ValidateGenre(v, &genresNames); !v.Valid() {
+			app.failedValidationResponse(w, r, v.Errors)
+			return
+		}
+
+		genres, err := app.models.Genres.UpsertBatch(ctx, tx, genresNames)
+		if err != nil {
+			app.serverErrorResponse(w, r, err)
+			return
+		}
+
+		movie.Genres = genres
+	}
+
+	err = app.models.Movies.Update(ctx, tx, movie)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrEditConflict):
@@ -275,6 +299,11 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 		default:
 			app.serverErrorResponse(w, r, err)
 		}
+		return
+	}
+
+	if err := tx.Commit(); err != nil {
+		app.serverErrorResponse(w, r, err)
 		return
 	}
 
