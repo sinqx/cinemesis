@@ -22,6 +22,13 @@ type Movie struct {
 	Version   int32     `json:"version"`
 }
 
+type MovieInput struct {
+	Title      string   `json:"title"`
+	Year       int32    `json:"year"`
+	Runtime    Runtime  `json:"runtime"`
+	GenreNames []string `json:"genres,omitempty"`
+}
+
 type MovieModel struct {
 	DB *sql.DB
 }

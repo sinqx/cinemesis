@@ -23,6 +23,15 @@ type Token struct {
 	Scope     string    `json:"-"`
 }
 
+type AuthInput struct {
+	Email    string `json:"email" example:" "`
+	Password string `json:"password" example:" "`
+}
+
+type EmailInput struct {
+	Email string `json:"email" example:" "`
+}
+
 type TokenModel struct {
 	DB *sql.DB
 }

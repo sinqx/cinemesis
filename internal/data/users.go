@@ -28,6 +28,21 @@ type password struct {
 	hash      []byte
 }
 
+type RegisterInput struct {
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type TokenInput struct {
+	TokenPlaintext string `json:"token"`
+}
+
+type UpdatePasswordInput struct {
+	Password string `json:"password"`
+	TokenPlaintext    string `json:"TokenPlaintext"`
+}
+
 func (u *User) IsAnonymous() bool {
 	return u == AnonymousUser
 }

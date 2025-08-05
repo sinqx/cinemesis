@@ -13,17 +13,14 @@ import (
 // @Tags         Tokens
 // @Accept       json
 // @Produce      json
-// @Param        credentials  body      map[string]string  true  "Email and password"
+// @Param        input  body  data.AuthInput  true  "Email and Password"
 // @Success      201          {object}  data.Token
 // @Failure      400          {object}  ErrorResponse
 // @Failure      401          {object}  ErrorResponse
 // @Failure      500          {object}  ErrorResponse
 // @Router       /v1/tokens/authentication [post]
 func (app *application) createAuthTokenHandler(w http.ResponseWriter, r *http.Request) {
-	var input struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
+	var input data.AuthInput
 
 	err := app.readJSON(w, r, &input)
 	if err != nil {
@@ -80,16 +77,15 @@ func (app *application) createAuthTokenHandler(w http.ResponseWriter, r *http.Re
 // @Tags         Tokens
 // @Accept       json
 // @Produce      json
-// @Param        email  body      map[string]string  true  "Email address"
+// @Param        input  body      data.EmailInput  true  "User Email"
 // @Success      202    {object}  map[string]string
 // @Failure      400    {object}  ErrorResponse
 // @Failure      422    {object}  ErrorResponse
 // @Failure      500    {object}  ErrorResponse
 // @Router       /v1/tokens/password-reset [post]
 func (app *application) createPasswordResetTokenHandler(w http.ResponseWriter, r *http.Request) {
-	var input struct {
-		Email string `json:"email"`
-	}
+	var input data.EmailInput
+
 	err := app.readJSON(w, r, &input)
 	if err != nil {
 		app.badRequestResponse(w, r, err)
@@ -148,16 +144,15 @@ func (app *application) createPasswordResetTokenHandler(w http.ResponseWriter, r
 // @Tags         Tokens
 // @Accept       json
 // @Produce      json
-// @Param        email  body      map[string]string  true  "Email address"
-// @Success      202    {object}  map[string]string
+// @Param        input  body      data.EmailInput  true  "User Email"
+// @Success      202    {object}  map[string]string  "message: email sent"
 // @Failure      400    {object}  ErrorResponse
 // @Failure      422    {object}  ErrorResponse
 // @Failure      500    {object}  ErrorResponse
 // @Router       /v1/tokens/activation [post]
 func (app *application) createActivationTokenHandler(w http.ResponseWriter, r *http.Request) {
-	var input struct {
-		Email string `json:"email"`
-	}
+	var input data.EmailInput
+
 	err := app.readJSON(w, r, &input)
 	if err != nil {
 		app.badRequestResponse(w, r, err)

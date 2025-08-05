@@ -48,7 +48,10 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns a list of all movies (with optional filtering/pagination)",
+                "description": "Returns a filtered list of movies with optional sorting and pagination",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
@@ -59,37 +62,57 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Filter by title",
+                        "description": "Filter by movie title",
                         "name": "title",
                         "in": "query"
                     },
                     {
-                        "type": "string",
-                        "description": "Filter by comma-separated genres",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "Comma-separated list of genre names (e.g. genres=Action,Drama)",
                         "name": "genres",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "Page number",
+                        "description": "Page number (default is 1)",
                         "name": "page",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "Items per page",
-                        "name": "limit",
+                        "description": "Page size (default is 20)",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort by field (id, title, year, runtime), use '-' for descending (e.g. -title)",
+                        "name": "sort",
                         "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "movies: []Movie, metadata: Metadata",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/data.Movie"
-                            }
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
                         }
                     },
                     "500": {
@@ -158,6 +181,9 @@ const docTemplate = `{
                     }
                 ],
                 "description": "Returns the movie with the specified ID",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
@@ -264,6 +290,9 @@ const docTemplate = `{
                     }
                 ],
                 "description": "Deletes the movie with the specified ID",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
@@ -320,21 +349,18 @@ const docTemplate = `{
                 "summary": "Resend activation token",
                 "parameters": [
                     {
-                        "description": "Email address",
-                        "name": "email",
+                        "description": "User Email",
+                        "name": "input",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/data.EmailInput"
                         }
                     }
                 ],
                 "responses": {
                     "202": {
-                        "description": "Accepted",
+                        "description": "message: email sent",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -378,15 +404,12 @@ const docTemplate = `{
                 "summary": "Authenticate user and return token",
                 "parameters": [
                     {
-                        "description": "Email and password",
-                        "name": "credentials",
+                        "description": "Email and Password",
+                        "name": "input",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/data.AuthInput"
                         }
                     }
                 ],
@@ -433,15 +456,12 @@ const docTemplate = `{
                 "summary": "Create password reset token",
                 "parameters": [
                     {
-                        "description": "Email address",
-                        "name": "email",
+                        "description": "User Email",
+                        "name": "input",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/data.EmailInput"
                         }
                     }
                 ],
@@ -496,7 +516,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/data.User"
+                            "$ref": "#/definitions/data.RegisterInput"
                         }
                     }
                 ],
@@ -551,10 +571,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/data.TokenInput"
                         }
                     }
                 ],
@@ -606,10 +623,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/data.UpdatePasswordInput"
                         }
                     }
                 ],
@@ -646,6 +660,28 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "data.AuthInput": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": " "
+                },
+                "password": {
+                    "type": "string",
+                    "example": " "
+                }
+            }
+        },
+        "data.EmailInput": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": " "
+                }
+            }
+        },
         "data.Genre": {
             "type": "object",
             "properties": {
@@ -686,6 +722,20 @@ const docTemplate = `{
                 }
             }
         },
+        "data.RegisterInput": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
         "data.Token": {
             "type": "object",
             "properties": {
@@ -693,6 +743,25 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "data.TokenInput": {
+            "type": "object",
+            "properties": {
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "data.UpdatePasswordInput": {
+            "type": "object",
+            "properties": {
+                "TokenPlaintext": {
+                    "type": "string"
+                },
+                "password": {
                     "type": "string"
                 }
             }

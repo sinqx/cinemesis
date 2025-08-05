@@ -1,4 +1,19 @@
 definitions:
+  data.AuthInput:
+    properties:
+      email:
+        example: ' '
+        type: string
+      password:
+        example: ' '
+        type: string
+    type: object
+  data.EmailInput:
+    properties:
+      email:
+        example: ' '
+        type: string
+    type: object
   data.Genre:
     properties:
       id:
@@ -25,11 +40,32 @@ definitions:
       year:
         type: integer
     type: object
+  data.RegisterInput:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+    type: object
   data.Token:
     properties:
       expiry:
         type: string
       token:
+        type: string
+    type: object
+  data.TokenInput:
+    properties:
+      token:
+        type: string
+    type: object
+  data.UpdatePasswordInput:
+    properties:
+      TokenPlaintext:
+        type: string
+      password:
         type: string
     type: object
   data.User:
@@ -75,33 +111,50 @@ paths:
       - Debug
   /v1/movies:
     get:
-      description: Returns a list of all movies (with optional filtering/pagination)
+      consumes:
+      - application/json
+      description: Returns a filtered list of movies with optional sorting and pagination
       parameters:
-      - description: Filter by title
+      - description: Filter by movie title
         in: query
         name: title
         type: string
-      - description: Filter by comma-separated genres
+      - collectionFormat: csv
+        description: Comma-separated list of genre names (e.g. genres=Action,Drama)
         in: query
+        items:
+          type: string
         name: genres
-        type: string
-      - description: Page number
+        type: array
+      - description: Page number (default is 1)
         in: query
         name: page
         type: integer
-      - description: Items per page
+      - description: Page size (default is 20)
         in: query
-        name: limit
+        name: page_size
         type: integer
+      - description: Sort by field (id, title, year, runtime), use '-' for descending
+          (e.g. -title)
+        in: query
+        name: sort
+        type: string
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: 'movies: []Movie, metadata: Metadata'
           schema:
-            items:
-              $ref: '#/definitions/data.Movie'
-            type: array
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -144,6 +197,8 @@ paths:
       - Movies
   /v1/movies/{id}:
     delete:
+      consumes:
+      - application/json
       description: Deletes the movie with the specified ID
       parameters:
       - description: Movie ID
@@ -174,6 +229,8 @@ paths:
       tags:
       - Movies
     get:
+      consumes:
+      - application/json
       description: Returns the movie with the specified ID
       parameters:
       - description: Movie ID
@@ -247,19 +304,17 @@ paths:
       - application/json
       description: Sends a new activation token to the user's email
       parameters:
-      - description: Email address
+      - description: User Email
         in: body
-        name: email
+        name: input
         required: true
         schema:
-          additionalProperties:
-            type: string
-          type: object
+          $ref: '#/definitions/data.EmailInput'
       produces:
       - application/json
       responses:
         "202":
-          description: Accepted
+          description: 'message: email sent'
           schema:
             additionalProperties:
               type: string
@@ -285,14 +340,12 @@ paths:
       - application/json
       description: Validates credentials and returns an authentication token
       parameters:
-      - description: Email and password
+      - description: Email and Password
         in: body
-        name: credentials
+        name: input
         required: true
         schema:
-          additionalProperties:
-            type: string
-          type: object
+          $ref: '#/definitions/data.AuthInput'
       produces:
       - application/json
       responses:
@@ -321,14 +374,12 @@ paths:
       - application/json
       description: Sends a password reset token to the user's email
       parameters:
-      - description: Email address
+      - description: User Email
         in: body
-        name: email
+        name: input
         required: true
         schema:
-          additionalProperties:
-            type: string
-          type: object
+          $ref: '#/definitions/data.EmailInput'
       produces:
       - application/json
       responses:
@@ -364,7 +415,7 @@ paths:
         name: user
         required: true
         schema:
-          $ref: '#/definitions/data.User'
+          $ref: '#/definitions/data.RegisterInput'
       produces:
       - application/json
       responses:
@@ -400,9 +451,7 @@ paths:
         name: token
         required: true
         schema:
-          additionalProperties:
-            type: string
-          type: object
+          $ref: '#/definitions/data.TokenInput'
       produces:
       - application/json
       responses:
@@ -436,9 +485,7 @@ paths:
         name: data
         required: true
         schema:
-          additionalProperties:
-            type: string
-          type: object
+          $ref: '#/definitions/data.UpdatePasswordInput'
       produces:
       - application/json
       responses:

@@ -13,18 +13,14 @@ import (
 // @Tags         Users
 // @Accept       json
 // @Produce      json
-// @Param        user  body      data.User  true  "User registration input"
+// @Param        user  body      data.RegisterInput  true  "User registration input"
 // @Success      202  {object}  map[string]string
 // @Failure      400  {object}  ErrorResponse
 // @Failure      422  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Router       /v1/users [post]
 func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Request) {
-	var input struct {
-		Name     string `json:"name"`
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
+	var input data.RegisterInput
 
 	err := app.readJSON(w, r, &input)
 	if err != nil {
@@ -97,16 +93,15 @@ func (app *application) registerUserHandler(w http.ResponseWriter, r *http.Reque
 // @Tags         Users
 // @Accept       json
 // @Produce      json
-// @Param        token  body      map[string]string  true  "Activation token"
+// @Param        token  body      data.TokenInput  true  "Activation token"
 // @Success      200    {object}  data.User
 // @Failure      400    {object}  ErrorResponse
 // @Failure      422    {object}  ErrorResponse
 // @Failure      500    {object}  ErrorResponse
 // @Router       /v1/users/activated [put]
 func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Request) {
-	var input struct {
-		TokenPlaintext string `json:"token"`
-	}
+	var input data.TokenInput
+
 	err := app.readJSON(w, r, &input)
 	if err != nil {
 		app.badRequestResponse(w, r, err)
@@ -161,17 +156,14 @@ func (app *application) activateUserHandler(w http.ResponseWriter, r *http.Reque
 // @Tags         Users
 // @Accept       json
 // @Produce      json
-// @Param        data  body      map[string]string  true  "Token and new password"
+// @Param        data  body      data.UpdatePasswordInput  true  "Token and new password"
 // @Success      200   {object}  map[string]string
 // @Failure      400   {object}  ErrorResponse
 // @Failure      422   {object}  ErrorResponse
 // @Failure      500   {object}  ErrorResponse
 // @Router       /v1/users/password [put]
 func (app *application) updateUserPasswordHandler(w http.ResponseWriter, r *http.Request) {
-	var input struct {
-		Password       string `json:"password"`
-		TokenPlaintext string `json:"token"`
-	}
+	var input data.UpdatePasswordInput
 
 	err := app.readJSON(w, r, &input)
 	if err != nil {
