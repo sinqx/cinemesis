@@ -12,6 +12,7 @@ var (
 
 type Models struct {
 	Movies      MovieModel
+	Reviews     ReviewModel
 	Genres      GenreModel
 	Tokens      TokenModel
 	Users       UserModel
@@ -21,6 +22,7 @@ type Models struct {
 func NewModels(db *sql.DB) Models {
 	return Models{
 		Movies:      MovieModel{DB: db},
+		Reviews:     ReviewModel{DB: db},
 		Genres:      GenreModel{DB: db},
 		Tokens:      TokenModel{DB: db},
 		Users:       UserModel{DB: db},
