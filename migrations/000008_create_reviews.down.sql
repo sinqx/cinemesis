@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS reviews;
+DROP TABLE IF EXISTS review_votes;
+DROP TYPE IF EXISTS vote_type;

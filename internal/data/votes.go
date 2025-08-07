@@ -15,9 +15,9 @@ const (
 )
 
 type ReviewVote struct {
-	ReviewID int64 `json:"review_id"`
-	UserID   int64 `json:"user_id"`
-	VoteType bool  `json:"vote_type"`
+	ReviewID int64    `json:"review_id"`
+	UserID   int64    `json:"user_id"`
+	VoteType VoteType `json:"vote_type"`
 }
 
 func (r ReviewModel) VoteReview(ctx context.Context, reviewID, userID int64, voteType VoteType) error {
