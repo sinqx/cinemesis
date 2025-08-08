@@ -2,6 +2,7 @@ package main
 
 import (
 	"cinemesis/internal/data"
+	"cinemesis/internal/filters"
 	"cinemesis/internal/validator"
 	"context"
 	"errors"
@@ -152,22 +153,11 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 // @Failure      500        {object}  ErrorResponse
 // @Router       /v1/movies [get]
 func (app *application) listMoviesHandler(w http.ResponseWriter, r *http.Request) {
-	var input struct {
-		Title  string
-		Genres []string
-		data.Filters
-	}
-
 	v := validator.New()
-	qs := r.URL.Query()
-	input.Title = app.readString(qs, "title", "")
-	input.Genres = app.readCSV(qs, "genres", []string{})
-	input.Filters.Page = app.readInt(qs, "page", 1, v)
-	input.Filters.PageSize = app.readInt(qs, "page_size", 20, v)
-	input.Filters.Sort = app.readString(qs, "sort", "id")
-	input.Filters.SortSafelist = []string{"id", "title", "year", "runtime", "-id", "-title", "-year", "-runtime"}
+	filters := filters.ParseMovieFiltersFromQuery(r.URL.Query(), v)
 
-	if data.ValidateFilters(v, input.Filters); !v.Valid() {
+	filters.ValidateMovieFilters(v, filters)
+	if !v.Valid() {
 		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
@@ -175,13 +165,13 @@ func (app *application) listMoviesHandler(w http.ResponseWriter, r *http.Request
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
 
-	genreIDs, err := app.models.Genres.GetIDsByNames(ctx, input.Genres)
+	genreIDs, err := app.models.Genres.GetIDsByNames(ctx, filters.Genres)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 		return
 	}
 
-	movies, metadata, err := app.models.Movies.GetFiltered(ctx, input.Title, genreIDs, input.Filters)
+	movies, total_records, err := app.models.Movies.GetFiltered(ctx, genreIDs, filters)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrRecordNotFound):
@@ -197,6 +187,8 @@ func (app *application) listMoviesHandler(w http.ResponseWriter, r *http.Request
 		app.serverErrorResponse(w, r, err)
 		return
 	}
+
+	metadata := calculateMetadata(total_records, filters.Page, filters.PageSize)
 
 	err = app.writeJSON(w, http.StatusOK, envelope{"movies": movies, "metadata": metadata}, nil)
 	if err != nil {

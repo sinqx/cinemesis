@@ -35,7 +35,9 @@ type ReviewResponse struct {
 	Text      string    `json:"text"`
 	UserName  string    `json:"user_name"`
 	Upvotes   int32     `json:"upvotes"`
+	Downvotes int32     `json:"downvotes"`
 	Rating    uint8     `json:"rating"`
+	UserVote  bool      `json:"user_vote"`
 	Edited    bool      `json:"edited"`
 	CreatedAt time.Time `json:"created_at"`
 }
@@ -136,7 +138,7 @@ func (r ReviewModel) GetByMovieID(ctx context.Context, movieID int64) (*[]Review
 		reviews = append(reviews, r)
 	}
 
-	if err != nil {
+	if err = rows.Err(); err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
 			return nil, ErrRecordNotFound
@@ -174,7 +176,7 @@ func (r ReviewModel) GetByUserID(ctx context.Context, userID int64) (*[]ReviewRe
 		reviews = append(reviews, r)
 	}
 
-	if err != nil {
+	if err = rows.Err(); err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
 			return nil, ErrRecordNotFound

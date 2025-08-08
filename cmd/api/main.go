@@ -3,6 +3,7 @@ package main
 import (
 	"cinemesis/internal/data"
 	"cinemesis/internal/mailer"
+	"cinemesis/internal/utils"
 	"cinemesis/internal/vcs"
 	"context"
 	"database/sql"
@@ -82,22 +83,22 @@ func main() {
 
 	var cfg config
 	// Server
-	flag.IntVar(&cfg.port, "port", getEnvInt("PORT", 4000), "API server port")
+	flag.IntVar(&cfg.port, "port", utils.GetEnvInt("PORT", 4000), "API server port")
 	flag.StringVar(&cfg.env, "env", "development", "Environment (development|staging|production)")
 
 	// DB
 	flag.StringVar(&cfg.db.dsn, "db-dsn", os.Getenv("POSTGRESQL_CONN"), "PostgreSQL DSN")
-	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", getEnvInt("DB_MAX_OPEN_CONNS", 25), "PostgreSQL max open connections")
-	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", getEnvInt("DB_MAX_IDLE_CONNS", 25), "PostgreSQL max idle connections")
-	flag.DurationVar(&cfg.db.maxIdleTime, "db-max-idle-time", getEnvDuration("DB_MAX_IDLE_TIME", 15*time.Minute), "PostgreSQL max connection idle time")
+	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", utils.GetEnvInt("DB_MAX_OPEN_CONNS", 25), "PostgreSQL max open connections")
+	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", utils.GetEnvInt("DB_MAX_IDLE_CONNS", 25), "PostgreSQL max idle connections")
+	flag.DurationVar(&cfg.db.maxIdleTime, "db-max-idle-time", utils.GetEnvDuration("DB_MAX_IDLE_TIME", 15*time.Minute), "PostgreSQL max connection idle time")
 
 	// Limiter
-	flag.Float64Var(&cfg.limiter.rps, "limiter-rps", getEnvFloat("LIMITER_RPS", 2), "Rate limiter maximum requests per second")
-	flag.IntVar(&cfg.limiter.burst, "limiter-burst", getEnvInt("LIMITER_BURST", 4), "Rate limiter maximum burst")
-	flag.BoolVar(&cfg.limiter.enabled, "limiter-enabled", getEnvBool("LIMITER_ENABLED", true), "Enable rate limiter")
+	flag.Float64Var(&cfg.limiter.rps, "limiter-rps", utils.GetEnvFloat("LIMITER_RPS", 2), "Rate limiter maximum requests per second")
+	flag.IntVar(&cfg.limiter.burst, "limiter-burst", utils.GetEnvInt("LIMITER_BURST", 4), "Rate limiter maximum burst")
+	flag.BoolVar(&cfg.limiter.enabled, "limiter-enabled", utils.GetEnvBool("LIMITER_ENABLED", true), "Enable rate limiter")
 
 	// SMTP
-	flag.IntVar(&cfg.smtp.port, "smtp-port", getEnvInt("SMTP_PORT", 25), "SMTP port")
+	flag.IntVar(&cfg.smtp.port, "smtp-port", utils.GetEnvInt("SMTP_PORT", 25), "SMTP port")
 	flag.StringVar(&cfg.smtp.host, "smtp-host", os.Getenv("SMTP_HOST"), "SMTP host")
 	flag.StringVar(&cfg.smtp.username, "smtp-username", os.Getenv("SMTP_USERNAME"), "SMTP username")
 	flag.StringVar(&cfg.smtp.password, "smtp-password", os.Getenv("SMTP_PASSWORD"), "SMTP password")

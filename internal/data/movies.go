@@ -1,11 +1,11 @@
 package data
 
 import (
+	"cinemesis/internal/filters"
 	"cinemesis/internal/validator"
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/lib/pq"
@@ -84,15 +84,18 @@ func (m MovieModel) Get(ctx context.Context, id int64) (*Movie, error) {
 	return &movie, nil
 }
 
-func (m MovieModel) GetFiltered(ctx context.Context, title string, genreIDs []int64, filters Filters) ([]*Movie, Metadata, error) {
-	query, args := NewQueryBuilder().
-		AddTitleFilter(title).
-		AddGenreFilter(genreIDs).
-		Build(filters)
+func (m MovieModel) GetFiltered(ctx context.Context, genreIDs []int64, mf filters.MovieFilters) ([]*Movie, int, error) {
+
+	query, args := filters.NewMovieQueryBuilder().
+		WithTitle(mf.Title).
+		WithGenres(genreIDs).
+		WithYearRange(mf.MinYear, mf.MaxYear).
+		WithRuntimeRange(mf.MinRuntime, mf.MaxRuntime).
+		Build(mf)
 
 	rows, err := m.DB.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, Metadata{}, fmt.Errorf("query failed: %w", err)
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -113,7 +116,7 @@ func (m MovieModel) GetFiltered(ctx context.Context, title string, genreIDs []in
 			&movie.Version,
 		)
 		if err != nil {
-			return nil, Metadata{}, ErrRecordNotFound
+			return nil, 0, ErrRecordNotFound
 		}
 
 		movie.Genres = []Genre{}
@@ -121,11 +124,10 @@ func (m MovieModel) GetFiltered(ctx context.Context, title string, genreIDs []in
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, Metadata{}, err
+		return nil, 0, err
 	}
 
-	metadata := calculateMetadata(totalRecords, filters.Page, filters.PageSize)
-	return movies, metadata, nil
+	return movies, 0, nil
 }
 
 func (m MovieModel) Update(ctx context.Context, tx *sql.Tx, movie *Movie) error {

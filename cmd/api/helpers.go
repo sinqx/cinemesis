@@ -1,17 +1,13 @@
 package main
 
 import (
-	"cinemesis/internal/validator"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
-	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"maps"
 
@@ -19,6 +15,27 @@ import (
 )
 
 type envelope map[string]any
+
+type Metadata struct {
+	CurrentPage  int `json:"current_page,omitzero"`
+	PageSize     int `json:"page_size,omitzero"`
+	FirstPage    int `json:"first_page,omitzero"`
+	LastPage     int `json:"last_page,omitzero"`
+	TotalRecords int `json:"total_records,omitzero"`
+}
+
+func calculateMetadata(totalRecords, page, pageSize int) Metadata {
+	if totalRecords == 0 {
+		return Metadata{}
+	}
+	return Metadata{
+		CurrentPage:  page,
+		PageSize:     pageSize,
+		FirstPage:    1,
+		LastPage:     (totalRecords + pageSize - 1) / pageSize,
+		TotalRecords: totalRecords,
+	}
+}
 
 func (app *application) readIDParam(r *http.Request) (int64, error) {
 	params := httprouter.ParamsFromContext(r.Context())
@@ -95,39 +112,6 @@ func (app *application) readJSON(w http.ResponseWriter, r *http.Request, dst any
 	return nil
 }
 
-func (app *application) readString(qs url.Values, key string, defaultValue string) string {
-	s := qs.Get(key)
-	if s == "" {
-		return defaultValue
-	}
-
-	return s
-}
-
-func (app *application) readCSV(qs url.Values, key string, defaultValue []string) []string {
-	csv := qs.Get(key)
-	if csv == "" {
-		return defaultValue
-	}
-
-	return strings.Split(csv, ",")
-}
-
-func (app *application) readInt(qs url.Values, key string, defaultValue int, v *validator.Validator) int {
-	s := qs.Get(key)
-	if s == "" {
-		return defaultValue
-	}
-
-	i, err := strconv.Atoi(s)
-	if err != nil {
-		v.AddError(key, "must be an integer value")
-		return defaultValue
-	}
-
-	return i
-}
-
 func (app *application) background(fn func()) {
 	app.wg.Add(1)
 	go func() {
@@ -140,39 +124,4 @@ func (app *application) background(fn func()) {
 		}()
 		fn()
 	}()
-}
-
-func getEnvInt(key string, fallback int) int {
-	if val := os.Getenv(key); val != "" {
-		if i, err := strconv.Atoi(val); err == nil {
-			return i
-		}
-	}
-	return fallback
-}
-
-func getEnvFloat(key string, fallback float64) float64 {
-	if val := os.Getenv(key); val != "" {
-		if f, err := strconv.ParseFloat(val, 64); err == nil {
-			return f
-		}
-	}
-	return fallback
-}
-
-func getEnvBool(key string, fallback bool) bool {
-	if val := os.Getenv(key); val != "" {
-		val = strings.ToLower(val)
-		return val == "1" || val == "true" || val == "yes"
-	}
-	return fallback
-}
-
-func getEnvDuration(key string, fallback time.Duration) time.Duration {
-	if val := os.Getenv(key); val != "" {
-		if d, err := time.ParseDuration(val); err == nil {
-			return d
-		}
-	}
-	return fallback
 }
