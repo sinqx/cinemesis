@@ -21,12 +21,62 @@ type MovieFilters struct {
 	MaxRuntime int32    `json:"max_runtime,omitempty"`
 }
 
-func  NewMovieFilters() MovieFilters {
+type MovieQueryBuilder struct {
+	*QueryBuilder
+}
+
+func (mqb *MovieQueryBuilder) Build(filters MovieFilters) (string, []any) {
+	return mqb.BuildMovieQuery(filters)
+}
+
+func NewMovieQueryBuilder() *MovieQueryBuilder {
+	return &MovieQueryBuilder{
+		QueryBuilder: NewQueryBuilder(),
+	}
+}
+
+func (qb *QueryBuilder) BuildMovieQuery(filters MovieFilters) (string, []any) {
+	var whereClause string
+	if len(qb.conditions) > 0 {
+		whereClause = "WHERE " + strings.Join(qb.conditions, " AND ")
+	}
+
+	columnMap := map[string]string{
+		"id":      "m.id",
+		"title":   "m.title",
+		"year":    "m.year",
+		"runtime": "m.runtime",
+	}
+
+	sortColumn := filters.sortColumn()
+	actualColumn, exists := columnMap[sortColumn]
+	if !exists {
+		actualColumn = "m.id"
+	}
+
+	query := fmt.Sprintf(`
+		SELECT count(*) OVER(), m.id, m.created_at, m.updated_at, m.title, m.year, m.runtime, m.version
+		FROM movies m
+		%s
+		ORDER BY %s %s, m.id ASC
+		LIMIT $%d OFFSET $%d`,
+		whereClause,
+		actualColumn,
+		filters.sortDirection(),
+		qb.argCount+1,
+		qb.argCount+2,
+	)
+
+	args := append(qb.args, filters.limit(), filters.offset())
+	return query, args
+}
+
+func NewMovieFilters() MovieFilters {
 	return MovieFilters{
 		PageFilters: PageFilters{
 			Page:     1,
 			PageSize: 20,
-			Sort:     "id",
+			Sort:     "-created_at",
 			SortSafelist: []string{
 				"id", "title", "year", "runtime",
 				"-id", "-title", "-year", "-runtime",
@@ -120,56 +170,6 @@ func (qb *QueryBuilder) AddRuntimeRangeFilter(minRuntime, maxRuntime int32) *Que
 		qb.args = append(qb.args, maxRuntime)
 	}
 	return qb
-}
-
-func (qb *QueryBuilder) BuildMovieQuery(filters MovieFilters) (string, []any) {
-	var whereClause string
-	if len(qb.conditions) > 0 {
-		whereClause = "WHERE " + strings.Join(qb.conditions, " AND ")
-	}
-
-	columnMap := map[string]string{
-		"id":      "m.id",
-		"title":   "m.title",
-		"year":    "m.year",
-		"runtime": "m.runtime",
-	}
-
-	sortColumn := filters.sortColumn()
-	actualColumn, exists := columnMap[sortColumn]
-	if !exists {
-		actualColumn = "m.id"
-	}
-
-	query := fmt.Sprintf(`
-		SELECT count(*) OVER(), m.id, m.created_at, m.updated_at, m.title, m.year, m.runtime, m.version
-		FROM movies m
-		%s
-		ORDER BY %s %s, m.id ASC
-		LIMIT $%d OFFSET $%d`,
-		whereClause,
-		actualColumn,
-		filters.sortDirection(),
-		qb.argCount+1,
-		qb.argCount+2,
-	)
-
-	args := append(qb.args, filters.limit(), filters.offset())
-	return query, args
-}
-
-type MovieQueryBuilder struct {
-	*QueryBuilder
-}
-
-func (mqb *MovieQueryBuilder) Build(filters MovieFilters) (string, []any) {
-	return mqb.BuildMovieQuery(filters)
-}
-
-func NewMovieQueryBuilder() *MovieQueryBuilder {
-	return &MovieQueryBuilder{
-		QueryBuilder: NewQueryBuilder(),
-	}
 }
 
 func (mqb *MovieQueryBuilder) WithTitle(title string) *MovieQueryBuilder {
