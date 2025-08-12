@@ -62,6 +62,44 @@ definitions:
       password:
         type: string
     type: object
+  data.Review:
+    properties:
+      downvotes:
+        type: integer
+      edited:
+        type: boolean
+      id:
+        type: integer
+      movie_id:
+        type: integer
+      rating:
+        type: integer
+      text:
+        type: string
+      upvotes:
+        type: integer
+      user_id:
+        type: integer
+      user_name:
+        type: string
+    type: object
+  data.ReviewInput:
+    properties:
+      edited:
+        type: boolean
+      id:
+        type: integer
+      movie_id:
+        type: integer
+      rating:
+        type: integer
+      text:
+        type: string
+      user_id:
+        type: integer
+      user_name:
+        type: string
+    type: object
   data.Token:
     properties:
       expiry:
@@ -608,6 +646,141 @@ paths:
       summary: Update a movie
       tags:
       - Movies
+  /v1/movies/{id}/reviews:
+    get:
+      consumes:
+      - application/json
+      description: Returns a filtered list of reviews with optional sorting and pagination
+      parameters:
+      - description: Movie ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Filter by review title
+        in: query
+        name: title
+        type: string
+      - description: Filter by review rating (0-5)
+        in: query
+        name: rating
+        type: string
+      - description: Filter by minimum upvotes
+        in: query
+        name: min_upvotes
+        type: integer
+      - description: Filter by date from in ISO 8601 format (e.g. 2020-01-01)
+        in: query
+        name: date_from
+        type: string
+      - description: Filter by date to in ISO 8601 format (e.g. 2020-01-01)
+        in: query
+        name: date_to
+        type: string
+      - description: Page number (default is 1)
+        in: query
+        name: page
+        type: integer
+      - description: Page size (default is 20)
+        in: query
+        name: page_size
+        type: integer
+      - description: Sort by field (id, title, rating, upvotes, downvotes, created_at)
+        in: query
+        name: sort
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'reviews: []Review, metadata: Metadata'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List reviews for a specific movie
+      tags:
+      - Reviews
+  /v1/review/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves a single review by id
+      parameters:
+      - description: The id of the review to retrieve
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/data.Review'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Show a review
+      tags:
+      - Reviews
+  /v1/reviews:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new review and stores it in the database
+      parameters:
+      - description: Review JSON
+        in: body
+        name: review
+        required: true
+        schema:
+          $ref: '#/definitions/data.ReviewInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/data.ReviewInput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a new review
+      tags:
+      - Reviews
   /v1/tokens/activation:
     post:
       consumes:
