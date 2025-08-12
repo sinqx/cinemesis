@@ -49,7 +49,6 @@ func NewReviewQueryBuilder() *ReviewQueryBuilder {
 		QueryBuilder: NewQueryBuilder(),
 	}
 }
-
 func (qb *QueryBuilder) BuildReviewQuery(filters ReviewFilters) (string, []any) {
 	var whereClause string
 	if len(qb.conditions) > 0 {
@@ -58,18 +57,37 @@ func (qb *QueryBuilder) BuildReviewQuery(filters ReviewFilters) (string, []any) 
 
 	sortClause := filters.GetSortClause()
 
+	var joinUserVote string
+	if filters.UserID > 0 {
+		qb.argCount++
+		joinUserVote = fmt.Sprintf(`
+			LEFT JOIN review_vote rv
+				ON rv.review_id = r.id AND rv.user_id = $%d
+		`, qb.argCount)
+		qb.args = append(qb.args, filters.UserID)
+	}
+
 	query := fmt.Sprintf(`
-		SELECT count(*) OVER(), r.id, u.name as user_name, r.text, r.rating,
-		       r.created_at, r.upvotes, r.downvotes, r.edited,
-		       (r.upvotes + r.downvotes) as total_votes
+		SELECT count(*) OVER(),
+		       r.id,
+		       u.name as user_name,
+		       r.text,
+		       r.rating
+		       r.created_at,
+		       r.upvotes,
+		       r.downvotes,
+		       r.edited,
+		       (r.upvotes + r.downvotes) as total_votes,
+		       COALESCE(rv.vote_type, 0) AS user_vote
 		FROM review r
 		JOIN users u ON r.user_id = u.id
 		%s
+		%s
 		ORDER BY %s, r.id ASC
 		LIMIT $%d OFFSET $%d`,
+		joinUserVote,
 		whereClause,
 		sortClause,
-		filters.sortDirection(),
 		qb.argCount+1,
 		qb.argCount+2,
 	)
@@ -130,7 +148,7 @@ func (rf *ReviewFilters) ValidateReviewFilters(v *validator.Validator, f ReviewF
 	validSortOrder := []string{SortOrderAsc, SortOrderDesc}
 	v.Check(validator.PermittedValue(f.SortOrder, validSortOrder...), "sort_order", "must be 'asc' or 'desc'")
 
-	v.Check(f.MinRating <= 10, "min_rating", "must be maximum 10")
+	v.Check(f.MinRating >= 1, "min_rating", "must be minimum 1")
 	v.Check(f.MaxRating <= 10, "max_rating", "must be maximum 10")
 	v.Check(f.MinRating <= f.MaxRating || f.MaxRating == 0, "max_rating", "must be greater than min_rating")
 	v.Check(f.MinUpvotes >= 0, "min_upvotes", "must be greater than or equal to zero")
