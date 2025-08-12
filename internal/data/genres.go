@@ -36,16 +36,26 @@ type GenreModel struct {
 	DB *sql.DB
 }
 
-func (g GenreModel) Insert(genreName string) error {
+func (g GenreModel) Insert(genreName string) (Genre, error) {
 	query := `
-	INSERT INTO genres (name)
-	VALUES ($1)
-	RETURNING id, name`
+		INSERT INTO genres (name)
+		SELECT $1
+		WHERE NOT EXISTS (SELECT 1 FROM genres WHERE name = $1)
+		RETURNING id, name`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	return g.DB.QueryRowContext(ctx, query, genreName).Scan(genreName)
+	var genre Genre
+
+	err := g.DB.QueryRowContext(ctx, query, genreName).Scan(&genre.ID, &genre.Name)
+	if err == sql.ErrNoRows {
+		return Genre{}, fmt.Errorf("duplicate genre name: %s", genreName)
+	} else if err != nil {
+		return Genre{}, err
+	}
+
+	return genre, nil
 }
 
 // UpsertBatch creates or updates a list of genres in the database.
@@ -93,7 +103,9 @@ func (g GenreModel) AttachGenresToMovie(ctx context.Context, tx *sql.Tx, movieID
 		return nil
 	}
 
-	query := `INSERT INTO movies_genres (movie_id, genre_id) VALUES `
+	query := `
+			INSERT INTO movies_genres (movie_id, genre_id)
+			VALUES `
 	args := []any{}
 	values := []string{}
 
@@ -105,8 +117,14 @@ func (g GenreModel) AttachGenresToMovie(ctx context.Context, tx *sql.Tx, movieID
 
 	query += strings.Join(values, ", ")
 
-	return tx.QueryRowContext(ctx, query, args...).Scan(&movieID, &genres[0].ID)
+	_, err := tx.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("failed to attach genres to movie in SQL: %w", err)
+	}
+
+	return nil
 }
+
 func (g GenreModel) DetachGenresFromMovie(ctx context.Context, tx *sql.Tx, movieID int64) error {
 	query := `DELETE FROM movies_genres WHERE movie_id = $1`
 	_, err := tx.ExecContext(ctx, query, movieID)
