@@ -54,40 +54,42 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 
 	tx, err := app.models.Movies.DB.BeginTx(ctx, nil)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		app.serverErrorResponse(w, r, fmt.Errorf("failed to begin transaction: %w", err))
 		return
 	}
 	defer tx.Rollback()
 
 	genres, err := app.models.Genres.UpsertBatch(ctx, tx, genresNames)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		app.serverErrorResponse(w, r, fmt.Errorf("failed to upsert genres: %w", err))
 		return
 	}
 
 	err = app.models.Movies.Insert(ctx, tx, movie)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		app.serverErrorResponse(w, r, fmt.Errorf("failed to create movie: %w", err))
 		return
 	}
 
 	err = app.models.Genres.AttachGenresToMovie(ctx, tx, movie.ID, genres)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		app.serverErrorResponse(w, r, fmt.Errorf("failed to attach genres: %w", err))
 		return
 	}
 
 	if err := tx.Commit(); err != nil {
-		app.serverErrorResponse(w, r, err)
+		app.serverErrorResponse(w, r, fmt.Errorf("failed to commit transaction: %w", err))
 		return
 	}
+
+	movie.Genres = genres
 
 	headers := make(http.Header)
 	headers.Set("Location", fmt.Sprintf("/v1/movies/%d", movie.ID))
 
 	err = app.writeJSON(w, http.StatusCreated, envelope{"movie": movie}, headers)
 	if err != nil {
-		app.serverErrorResponse(w, r, err)
+		app.serverErrorResponse(w, r, fmt.Errorf("failed to write response: %w", err))
 	}
 }
 
@@ -130,7 +132,13 @@ func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request)
 	}
 	movie.Genres = genres
 
-	err = app.writeJSON(w, http.StatusOK, envelope{"movie": movie}, nil)
+	reviews, err := app.models.Reviews.GetTopMovieReviews(ctx, id, 5)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"movie": movie, "reviews": reviews}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}

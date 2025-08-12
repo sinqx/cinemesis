@@ -127,7 +127,7 @@ func (m MovieModel) GetFiltered(ctx context.Context, genreIDs []int64, mf filter
 		return nil, 0, err
 	}
 
-	return movies, 0, nil
+	return movies, totalRecords, nil
 }
 
 func (m MovieModel) Update(ctx context.Context, tx *sql.Tx, movie *Movie) error {

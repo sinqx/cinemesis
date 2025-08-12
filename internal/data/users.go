@@ -39,8 +39,8 @@ type TokenInput struct {
 }
 
 type UpdatePasswordInput struct {
-	Password string `json:"password"`
-	TokenPlaintext    string `json:"TokenPlaintext"`
+	Password       string `json:"password"`
+	TokenPlaintext string `json:"TokenPlaintext"`
 }
 
 func (u *User) IsAnonymous() bool {
