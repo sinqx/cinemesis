@@ -145,6 +145,10 @@ func (app *application) requireActivatedUser(next http.HandlerFunc) http.Handler
 func (app *application) requirePermission(code string, next http.HandlerFunc) http.HandlerFunc {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		user := app.contextGetUser(r)
+		if user == nil {
+			app.authenticationRequiredResponse(w, r)
+			return
+		}
 
 		permissions, err := app.models.Permissions.GetAllForUser(user.ID)
 		if err != nil {
@@ -152,12 +156,12 @@ func (app *application) requirePermission(code string, next http.HandlerFunc) ht
 			return
 		}
 
-		if !permissions.Include(code) {
-			app.notPermittedResponse(w, r)
+		if permissions.Include("admin") || permissions.Include(code) {
+			next.ServeHTTP(w, r)
 			return
 		}
 
-		next.ServeHTTP(w, r)
+		app.notPermittedResponse(w, r)
 	}
 
 	return app.requireActivatedUser(fn)
