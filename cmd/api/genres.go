@@ -38,14 +38,10 @@ func (app *application) createGenreHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	err = app.models.Genres.Insert(input.Name)
+	createdGenre, err := app.models.Genres.Insert(input.Name)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 		return
-	}
-
-	createdGenre := &data.Genre{
-		Name: input.Name,
 	}
 
 	headers := make(http.Header)
