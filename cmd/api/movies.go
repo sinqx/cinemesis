@@ -211,12 +211,12 @@ func (app *application) listMoviesHandler(w http.ResponseWriter, r *http.Request
 // @Accept       json
 // @Produce      json
 // @Param        id     path      int        true  "Movie ID"
-// @Param        movie  body      data.Movie true  "Updated movie data"
+// @Param        movie  body      data.MovieInput true  "Updated movie data"
 // @Success      200    {object}  data.Movie
 // @Failure      400    {object}  ErrorResponse
 // @Failure      404    {object}  ErrorResponse
 // @Failure      500    {object}  ErrorResponse
-// @Router       /v1/movies/{id} [put]
+// @Router       /v1/movies/{id} [patch]
 func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
 	if err != nil {
@@ -242,7 +242,7 @@ func (app *application) updateMovieHandler(w http.ResponseWriter, r *http.Reques
 		Title      *string       `json:"title"`
 		Year       *int32        `json:"year"`
 		Runtime    *data.Runtime `json:"runtime"`
-		GenreNames *[]string     `json:"genres,omitempty"`
+		GenreNames *[]string      `json:"genres,omitempty"`
 	}
 
 	err = app.readJSON(w, r, &input)
