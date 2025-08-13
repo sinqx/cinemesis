@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 )
 
 type VoteType int8
@@ -32,11 +33,13 @@ func (r ReviewModel) VoteReview(ctx context.Context, reviewID, userID int64, vot
 		return err
 	}
 
-	if currentVote == voteType {
-		return nil
-	}
+	fmt.Println(currentVote, voteType)
 
-	if err := r.updateVote(ctx, tx, reviewID, userID, currentVote, voteType); err != nil {
+	if currentVote == voteType {
+		if err := r.deleteVote(ctx, tx, reviewID, userID); err != nil {
+			return err
+		}
+	} else if err := r.updateVote(ctx, tx, reviewID, userID, currentVote, voteType); err != nil {
 		return err
 	}
 
@@ -75,15 +78,17 @@ func (r ReviewModel) updateVote(ctx context.Context, tx *sql.Tx, reviewID, userI
 
 	if currentVote == NoneVote {
 		_, err := tx.ExecContext(ctx, `
-			INSERT INTO review_votes (review_id, user_id, vote_type, created_at)
-			VALUES ($1, $2, $3, NOW())`,
+			INSERT INTO review_votes (review_id, user_id, vote_type)
+			VALUES ($1, $2, $3)`,
 			reviewID, userID, newVote)
 		return err
 	}
 
+	fmt.Println("currentVote, newVote")
+
 	_, err := tx.ExecContext(ctx, `
 		UPDATE review_votes 
-		SET vote_type = $3, created_at = NOW()
+		SET vote_type = $3
 		WHERE review_id = $1 AND user_id = $2`,
 		reviewID, userID, newVote)
 	return err
@@ -96,12 +101,19 @@ func (r ReviewModel) updateVoteCounts(ctx context.Context, tx *sql.Tx, reviewID 
 	_, err := tx.ExecContext(ctx, `
 		UPDATE reviews 
 		SET upvotes = GREATEST(0, upvotes + $2),
-			downvotes = GREATEST(0, downvotes + $3),
-			net_score = upvotes - downvotes,
-			updated_at = NOW()
+			downvotes = GREATEST(0, downvotes + $3)
 		WHERE id = $1`,
 		reviewID, upvoteDelta, downvoteDelta)
 
+	return err
+}
+
+func (r ReviewModel) deleteVote(ctx context.Context, tx *sql.Tx, reviewID, userID int64) error {
+	_, err := tx.ExecContext(ctx,
+		`DELETE FROM review_votes
+		 WHERE review_id = $1 AND user_id = $2`,
+		reviewID, userID)
+	fmt.Println("deleted")
 	return err
 }
 
