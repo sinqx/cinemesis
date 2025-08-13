@@ -63,7 +63,7 @@ func (app *application) createReviewHandler(w http.ResponseWriter, r *http.Reque
 // @Failure      400  {object}  ErrorResponse
 // @Failure      404  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
-// @Router       /v1/review/{id} [get]
+// @Router       /v1/reviews/{id} [get]
 func (app *application) showReviewHandler(w http.ResponseWriter, r *http.Request) {
 	reviewID, err := app.readIDParam(r)
 	if err != nil {
@@ -156,6 +156,64 @@ func (app *application) listMovieReviewsHandler(w http.ResponseWriter, r *http.R
 	metadata := calculateMetadata(total_records, filters.Page, filters.PageSize)
 
 	err = app.writeJSON(w, http.StatusOK, envelope{"reviews": reviews, "metadata": metadata}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+// @Summary      Vote for a review
+// @Description  Casts a vote for a review
+// @Tags         Reviews
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id   path      int  true  "Review ID"
+// @Param        vote  body      data.VoteType  true  "Vote type (upvote or downvote)"
+// @Success      200  {object}  envelope
+// @Failure      400  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /v1/reviews/{id}/vote [post]
+func (app *application) voteForReview(w http.ResponseWriter, r *http.Request) {
+	reviewID, err := app.readIDParam(r)
+	if err != nil {
+		app.notFoundResponse(w, r)
+		return
+	}
+
+	var voteType data.VoteType
+	err = app.readJSON(w, r, &voteType)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	if voteType > 1 || voteType < -1 {
+		app.badRequestResponse(w, r, errors.New("invalid vote type"))
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+	defer cancel()
+
+	var userID int64
+	if user := app.contextGetUser(r); user != nil {
+		userID = user.ID
+	}
+
+	err = app.models.Reviews.VoteReview(ctx, reviewID, userID, voteType)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"message": "vote successful"}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}

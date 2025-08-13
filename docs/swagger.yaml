@@ -137,6 +137,9 @@ definitions:
       error:
         type: string
     type: object
+  main.envelope:
+    additionalProperties: {}
+    type: object
 info:
   contact:
     email: support@swagger.io
@@ -714,7 +717,39 @@ paths:
       summary: List reviews for a specific movie
       tags:
       - Reviews
-  /v1/review/{id}:
+  /v1/reviews:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new review and stores it in the database
+      parameters:
+      - description: Review JSON
+        in: body
+        name: review
+        required: true
+        schema:
+          $ref: '#/definitions/data.ReviewInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/data.ReviewInput'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Create a new review
+      tags:
+      - Reviews
+  /v1/reviews/{id}:
     get:
       consumes:
       - application/json
@@ -749,27 +784,36 @@ paths:
       summary: Show a review
       tags:
       - Reviews
-  /v1/reviews:
+  /v1/reviews/{id}/vote:
     post:
       consumes:
       - application/json
-      description: Creates a new review and stores it in the database
+      description: Casts a vote for a review
       parameters:
-      - description: Review JSON
+      - description: Review ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Vote type (upvote or downvote)
         in: body
-        name: review
+        name: vote
         required: true
         schema:
-          $ref: '#/definitions/data.ReviewInput'
+          type: integer
       produces:
       - application/json
       responses:
-        "201":
-          description: Created
+        "200":
+          description: OK
           schema:
-            $ref: '#/definitions/data.ReviewInput'
+            $ref: '#/definitions/main.envelope'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "404":
+          description: Not Found
           schema:
             $ref: '#/definitions/main.ErrorResponse'
         "500":
@@ -778,7 +822,7 @@ paths:
             $ref: '#/definitions/main.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Create a new review
+      summary: Vote for a review
       tags:
       - Reviews
   /v1/tokens/activation:

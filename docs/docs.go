@@ -900,7 +900,58 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/review/{id}": {
+        "/v1/reviews": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates a new review and stores it in the database",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reviews"
+                ],
+                "summary": "Create a new review",
+                "parameters": [
+                    {
+                        "description": "Review JSON",
+                        "name": "review",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/data.ReviewInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/data.ReviewInput"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/reviews/{id}": {
             "get": {
                 "security": [
                     {
@@ -955,14 +1006,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/reviews": {
+        "/v1/reviews/{id}/vote": {
             "post": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Creates a new review and stores it in the database",
+                "description": "Casts a vote for a review",
                 "consumes": [
                     "application/json"
                 ],
@@ -972,27 +1023,40 @@ const docTemplate = `{
                 "tags": [
                     "Reviews"
                 ],
-                "summary": "Create a new review",
+                "summary": "Vote for a review",
                 "parameters": [
                     {
-                        "description": "Review JSON",
-                        "name": "review",
+                        "type": "integer",
+                        "description": "Review ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Vote type (upvote or downvote)",
+                        "name": "vote",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/data.ReviewInput"
+                            "type": "integer"
                         }
                     }
                 ],
                 "responses": {
-                    "201": {
-                        "description": "Created",
+                    "200": {
+                        "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/data.ReviewInput"
+                            "$ref": "#/definitions/main.envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/main.ErrorResponse"
                         }
@@ -1543,6 +1607,10 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "main.envelope": {
+            "type": "object",
+            "additionalProperties": {}
         }
     },
     "securityDefinitions": {

@@ -33,8 +33,9 @@ func (app *application) routes() http.Handler {
 	router.HandlerFunc(http.MethodDelete, "/v1/movies/:id", app.requirePermission("movies:write", app.deleteMovieHandler))
 
 	router.HandlerFunc(http.MethodPost, "/v1/reviews", app.requirePermission("reviews:write", app.createReviewHandler))
-	router.HandlerFunc(http.MethodPost, "/v1/reviews/:id", app.requirePermission("reviews:read", app.showReviewHandler))
-	router.HandlerFunc(http.MethodPost, "/v1/movies/:id/reviews", app.requirePermission("reviews:read", app.listMovieReviewsHandler))
+	router.HandlerFunc(http.MethodGet, "/v1/reviews/:id", app.requirePermission("reviews:read", app.showReviewHandler))
+	router.HandlerFunc(http.MethodPost, "/v1/reviews/:id/vote", app.requirePermission("reviews:write", app.voteForReview))
+	router.HandlerFunc(http.MethodGet, "/v1/movies/:id/reviews", app.requirePermission("reviews:read", app.listMovieReviewsHandler))
 
 	router.HandlerFunc(http.MethodPost, "/v1/users", app.registerUserHandler)
 	router.HandlerFunc(http.MethodPut, "/v1/users/activated", app.activateUserHandler)
