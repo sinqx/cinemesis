@@ -176,113 +176,6 @@ paths:
       summary: Get all genres
       tags:
       - Genres
-  /v1/genres/{id}:
-    delete:
-      consumes:
-      - application/json
-      description: Deletes the genre with the specified ID
-      parameters:
-      - description: Genre ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "204":
-          description: No Content
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/main.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/main.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Delete a genre
-      tags:
-      - Genres
-    get:
-      consumes:
-      - application/json
-      description: Returns the genre with the specified ID
-      parameters:
-      - description: Genre ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/data.Genre'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/main.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/main.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/main.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Get a genre by ID
-      tags:
-      - Genres
-    patch:
-      consumes:
-      - application/json
-      description: Updates the genre with the specified ID
-      parameters:
-      - description: Genre ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: Updated genre JSON
-        in: body
-        name: genre
-        required: true
-        schema:
-          $ref: '#/definitions/data.Genre'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/data.Genre'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/main.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/main.ErrorResponse'
-        "409":
-          description: Conflict
-          schema:
-            $ref: '#/definitions/main.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/main.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: Update a genre
-      tags:
-      - Genres
   /v1/genres/attach/{id}:
     patch:
       consumes:
@@ -364,6 +257,70 @@ paths:
       summary: Create a new genre
       tags:
       - Genres
+  /v1/genres/delete/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes the genre with the specified ID
+      parameters:
+      - description: Genre ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a genre
+      tags:
+      - Genres
+  /v1/genres/get/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Returns the genre with the specified ID
+      parameters:
+      - description: Genre ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/data.Genre'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get a genre by ID
+      tags:
+      - Genres
   /v1/genres/movie/{id}:
     get:
       consumes:
@@ -402,7 +359,52 @@ paths:
       summary: Get genres for a movie
       tags:
       - Genres
-  /v1/genres/movie/{id}/:
+  /v1/genres/update/{id}:
+    patch:
+      consumes:
+      - application/json
+      description: Updates the genre with the specified ID
+      parameters:
+      - description: Genre ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated genre JSON
+        in: body
+        name: genre
+        required: true
+        schema:
+          $ref: '#/definitions/data.Genre'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/data.Genre'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a genre
+      tags:
+      - Genres
+  /v1/genres/update/movie/{id}/:
     put:
       consumes:
       - application/json
@@ -609,7 +611,7 @@ paths:
       summary: Get a movie by ID
       tags:
       - Movies
-    put:
+    patch:
       consumes:
       - application/json
       description: Updates the movie with the specified ID
@@ -624,7 +626,7 @@ paths:
         name: movie
         required: true
         schema:
-          $ref: '#/definitions/data.Movie'
+          $ref: '#/definitions/data.MovieInput'
       produces:
       - application/json
       responses:
