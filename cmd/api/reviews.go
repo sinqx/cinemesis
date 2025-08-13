@@ -102,16 +102,14 @@ func (app *application) showReviewHandler(w http.ResponseWriter, r *http.Request
 // @Security     BearerAuth
 // @Accept       json
 // @Produce      json
-// @Param        id   path      int  true  "Movie ID"
-// @Param        title      query     string   false  "Filter by review title"
-// @Param        rating     query     string   false  "Filter by review rating (0-5)"
-// @Param        min_upvotes      query     int      false  "Filter by minimum upvotes"
-// @Param        date_from      query     string   false  "Filter by date from in ISO 8601 format (e.g. 2020-01-01)"
-// @Param        date_to      query     string   false  "Filter by date to in ISO 8601 format (e.g. 2020-01-01)"
-// @Param        page       query     int      false  "Page number (default is 1)"
-// @Param        page_size  query     int      false  "Page size (default is 20)"
-// @Param        sort       query     string   false  "Sort by field (id, title, rating, upvotes, downvotes, created_at)"
-// @Success      200        {object}  map[string]interface{}  "reviews: []Review, metadata: Metadata"
+// @Param        id         path      int     true   "Movie ID"
+// @Param        rating     query     string  false  "Sort by rating (presence of parameter enables sorting)"
+// @Param        upvotes    query     string  false  "Sort by upvotes (presence of parameter enables sorting)"
+// @Param        date       query     string  false  "Sort by date (presence of parameter enables sorting)"
+// @Param        desc       query     string  false  "Sort in descending order (presence of parameter enables DESC)"
+// @Param        page       query     int     false  "Page number (default is 1)"
+// @Param        page_size  query     int     false  "Page size (default is 20)"
+// @Success      200        {object}  map[string]interface{}  "reviews: []ReviewResponse, metadata: Metadata"
 // @Failure      400        {object}  ErrorResponse
 // @Failure      404        {object}  ErrorResponse
 // @Failure      500        {object}  ErrorResponse
@@ -124,25 +122,24 @@ func (app *application) listMovieReviewsHandler(w http.ResponseWriter, r *http.R
 	}
 
 	v := validator.New()
-	filters := filters.ParseReviewFiltersFromQuery(r.URL.Query(), v)
+	reviewFilters := filters.ParseReviewFiltersFromQuery(r.URL.Query(), v)
+	reviewFilters.MovieID = movieID
 
-	filters.ValidateReviewFilters(v, filters)
+	reviewFilters.ValidateReviewFilters(v, reviewFilters)
 	if !v.Valid() {
 		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
 
-	filters.MovieID = movieID
-
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
 
-	var userID *int64
+	var currentUserID int64
 	if user := app.contextGetUser(r); user != nil {
-		userID = &user.ID
+		currentUserID = user.ID
 	}
 
-	reviews, total_records, err := app.models.Reviews.GetByMovieIDFiltered(ctx, userID, filters)
+	reviews, totalRecords, err := app.models.Reviews.GetFiltered(ctx, currentUserID, reviewFilters)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrRecordNotFound):
@@ -153,7 +150,69 @@ func (app *application) listMovieReviewsHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	metadata := calculateMetadata(total_records, filters.Page, filters.PageSize)
+	metadata := calculateMetadata(totalRecords, reviewFilters.Page, reviewFilters.PageSize)
+
+	err = app.writeJSON(w, http.StatusOK, envelope{"reviews": reviews, "metadata": metadata}, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+	}
+}
+
+// @Summary      List reviews by a specific user
+// @Description  Returns a filtered list of reviews by a user with optional sorting and pagination
+// @Tags         Reviews
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id         path      int     true   "User ID"
+// @Param        rating     query     string  false  "Sort by rating"
+// @Param        upvotes    query     string  false  "Sort by upvotes"
+// @Param        date       query     string  false  "Sort by date"
+// @Param        desc       query     string  false  "Sort in descending order"
+// @Param        page       query     int     false  "Page number (default is 1)"
+// @Param        page_size  query     int     false  "Page size (default is 20)"
+// @Success      200        {object}  map[string]interface{}  "reviews: []ReviewResponse, metadata: Metadata"
+// @Failure      400        {object}  ErrorResponse
+// @Failure      404        {object}  ErrorResponse
+// @Failure      500        {object}  ErrorResponse
+// @Router       /v1/users/{id}/reviews [get]
+func (app *application) listUserReviewsHandler(w http.ResponseWriter, r *http.Request) {
+	userReviewsID, err := app.readIDParam(r)
+	if err != nil {
+		app.notFoundResponse(w, r)
+		return
+	}
+
+	v := validator.New()
+	reviewFilters := filters.ParseReviewFiltersFromQuery(r.URL.Query(), v)
+	reviewFilters.UserID = userReviewsID
+
+	reviewFilters.ValidateReviewFilters(v, reviewFilters)
+	if !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+	defer cancel()
+
+	var currentUserID int64
+	if user := app.contextGetUser(r); user != nil {
+		currentUserID = user.ID
+	}
+
+	reviews, totalRecords, err := app.models.Reviews.GetFiltered(ctx, currentUserID, reviewFilters)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
+	metadata := calculateMetadata(totalRecords, reviewFilters.Page, reviewFilters.PageSize)
 
 	err = app.writeJSON(w, http.StatusOK, envelope{"reviews": reviews, "metadata": metadata}, nil)
 	if err != nil {
@@ -232,12 +291,12 @@ func (app *application) listTopFiveMovieReviewsHandler(w http.ResponseWriter, r 
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
 
-	var userID *int64
+	var userID int64
 	if user := app.contextGetUser(r); user != nil {
-		userID = &user.ID
+		userID = user.ID
 	}
 
-	reviews, total_records, err := app.models.Reviews.GetByMovieIDFiltered(ctx, userID, filters)
+	reviews, total_records, err := app.models.Reviews.GetFiltered(ctx, userID, filters)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrRecordNotFound):

@@ -134,17 +134,8 @@ func (r ReviewModel) Get(ctx context.Context, reviewID int64, userID *int64) (*R
 	return &review, nil
 }
 
-func (r ReviewModel) GetByMovieIDFiltered(ctx context.Context, userID *int64, rf filters.ReviewFilters) ([]*ReviewResponse, int, error) {
-	if userID != nil {
-		rf.UserID = *userID
-	}
-
-	query, args := filters.NewReviewQueryBuilder().
-		WithMovieID(rf.MovieID).
-		WithRatingRange(rf.MinRating, rf.MaxRating).
-		WithMinUpvotes(rf.MinUpvotes).
-		WithDateRange(rf.DateFrom, rf.DateTo).
-		Build(rf)
+func (r ReviewModel) GetFiltered(ctx context.Context, currentUserID int64, rf filters.ReviewFilters) ([]*ReviewResponse, int, error) {
+	query, args := filters.NewReviewQueryBuilder().Build(rf, currentUserID)
 
 	rows, err := r.DB.QueryContext(ctx, query, args...)
 	if err != nil {
