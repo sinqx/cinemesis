@@ -190,7 +190,7 @@ func (app *application) addGenresToMovieHandler(w http.ResponseWriter, r *http.R
 // @Failure      400    {object}  ErrorResponse
 // @Failure      404    {object}  ErrorResponse
 // @Failure      500    {object}  ErrorResponse
-// @Router       /v1/genres/movie/{id}/ [put]
+// @Router       /v1/genres/update/movie/{id}/ [put]
 func (app *application) replaceMovieGenresHandler(w http.ResponseWriter, r *http.Request) {
 	movieID, err := app.readIDParam(r)
 	if err != nil {
@@ -307,7 +307,7 @@ func (app *application) getAllGenresHandler(w http.ResponseWriter, r *http.Reque
 // @Failure      400  {object}  ErrorResponse
 // @Failure      404  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
-// @Router       /v1/genres/{id} [get]
+// @Router       /v1/genres/get/{id} [get]
 func (app *application) showGenreHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
 	if err != nil {
@@ -348,7 +348,7 @@ func (app *application) showGenreHandler(w http.ResponseWriter, r *http.Request)
 // @Failure      404  {object}  ErrorResponse
 // @Failure      409  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
-// @Router       /v1/genres/{id} [patch]
+// @Router       /v1/genres/update/{id} [patch]
 func (app *application) updateGenreHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
 	if err != nil {
@@ -409,7 +409,7 @@ func (app *application) updateGenreHandler(w http.ResponseWriter, r *http.Reques
 // @Success      204  {object}  nil
 // @Failure      404  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
-// @Router       /v1/genres/{id} [delete]
+// @Router       /v1/genres/delete/{id} [delete]
 func (app *application) deleteGenreHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
 	if err != nil {
