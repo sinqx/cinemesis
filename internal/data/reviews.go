@@ -233,7 +233,7 @@ func (r ReviewModel) GetTopMovieReviews(ctx context.Context, movieID int64, limi
 		       created_at
 		FROM reviews 
 		WHERE movie_id = $1 AND upvotes > 0
-		ORDER BY net_score DESC, upvotes DESC
+		ORDER BY upvotes DESC
 		LIMIT $2
 	`
 
