@@ -33,8 +33,6 @@ func (r ReviewModel) VoteReview(ctx context.Context, reviewID, userID int64, vot
 		return err
 	}
 
-	fmt.Println(currentVote, voteType)
-
 	if currentVote == voteType {
 		if err := r.deleteVote(ctx, tx, reviewID, userID); err != nil {
 			return err
@@ -83,8 +81,6 @@ func (r ReviewModel) updateVote(ctx context.Context, tx *sql.Tx, reviewID, userI
 			reviewID, userID, newVote)
 		return err
 	}
-
-	fmt.Println("currentVote, newVote")
 
 	_, err := tx.ExecContext(ctx, `
 		UPDATE review_votes 
