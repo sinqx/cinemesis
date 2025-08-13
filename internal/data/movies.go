@@ -7,8 +7,6 @@ import (
 	"database/sql"
 	"errors"
 	"time"
-
-	"github.com/lib/pq"
 )
 
 type Movie struct {
@@ -134,11 +132,11 @@ func (m MovieModel) Update(ctx context.Context, tx *sql.Tx, movie *Movie) error 
 
 	query := `
 		UPDATE movies
-		SET title = $1, year = $2, runtime = $3, genres = $4, updated_at = NOW(), version = version + 1
-		WHERE id = $5 and version = $6
+		SET title = $1, year = $2, runtime = $3, updated_at = NOW(), version = version + 1
+		WHERE id = $4 and version = $5
 		RETURNING version`
 
-	args := []any{movie.Title, movie.Year, movie.Runtime, pq.Array(movie.Genres), movie.ID, movie.Version}
+	args := []any{movie.Title, movie.Year, movie.Runtime, movie.ID, movie.Version}
 
 	err := tx.QueryRowContext(ctx, query, args...).Scan(&movie.Version)
 	if err != nil {
