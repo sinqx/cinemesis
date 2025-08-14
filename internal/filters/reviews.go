@@ -41,7 +41,6 @@ func NewReviewQueryBuilder() *ReviewQueryBuilder {
 		QueryBuilder: NewQueryBuilder(),
 	}
 }
-
 func (qb *QueryBuilder) BuildReviewQuery(filters ReviewFilters, currentUserID int64) (string, []any) {
 	qb.addMovieFilter(filters.MovieID)
 	qb.addUserFilter(filters.UserID)
@@ -64,16 +63,18 @@ func (qb *QueryBuilder) BuildReviewQuery(filters ReviewFilters, currentUserID in
 	}
 
 	query := fmt.Sprintf(`
-		SELECT count(*) OVER(),
+		SELECT count(*) OVER() AS total_count,
 		       r.id,
-		       u.name as user_name,
+		       r.user_id,
+		       r.movie_id,
 		       r.text,
 		       r.rating,
 		       r.created_at,
 		       r.upvotes,
 		       r.downvotes,
 		       r.edited,
-		       (r.upvotes + r.downvotes) as total_votes,
+		       u.name AS user_name,
+		       (r.upvotes + r.downvotes) AS total_votes,
 		       COALESCE(rv.vote_type, 0) AS user_vote
 		FROM review r
 		JOIN users u ON r.user_id = u.id

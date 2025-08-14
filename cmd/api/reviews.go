@@ -17,13 +17,13 @@ import (
 // @Security     BearerAuth
 // @Accept       json
 // @Produce      json
-// @Param        review  body      data.ReviewInput  true  "Review JSON"
-// @Success      201    {object}  data.ReviewInput
+// @Param        review  body      data.Review  true  "Review JSON"
+// @Success      201    {object}  data.Review
 // @Failure      400    {object}  ErrorResponse
 // @Failure      500    {object}  ErrorResponse
 // @Router       /v1/reviews [post]
 func (app *application) createReviewHandler(w http.ResponseWriter, r *http.Request) {
-	var reviewInput data.ReviewInput
+	var reviewInput data.Review
 
 	err := app.readJSON(w, r, &reviewInput)
 	if err != nil {
@@ -109,7 +109,7 @@ func (app *application) showReviewHandler(w http.ResponseWriter, r *http.Request
 // @Param        desc       query     string  false  "Sort in descending order (presence of parameter enables DESC)"
 // @Param        page       query     int     false  "Page number (default is 1)"
 // @Param        page_size  query     int     false  "Page size (default is 20)"
-// @Success      200        {object}  map[string]interface{}  "reviews: []ReviewResponse, metadata: Metadata"
+// @Success      200        {object}  map[string]interface{}  "reviews: []ReviewWithUser, metadata: Metadata"
 // @Failure      400        {object}  ErrorResponse
 // @Failure      404        {object}  ErrorResponse
 // @Failure      500        {object}  ErrorResponse
@@ -171,7 +171,7 @@ func (app *application) listMovieReviewsHandler(w http.ResponseWriter, r *http.R
 // @Param        desc       query     string  false  "Sort in descending order"
 // @Param        page       query     int     false  "Page number (default is 1)"
 // @Param        page_size  query     int     false  "Page size (default is 20)"
-// @Success      200        {object}  map[string]interface{}  "reviews: []ReviewResponse, metadata: Metadata"
+// @Success      200        {object}  map[string]interface{}  "reviews: []Reviews, metadata: Metadata"
 // @Failure      400        {object}  ErrorResponse
 // @Failure      404        {object}  ErrorResponse
 // @Failure      500        {object}  ErrorResponse
@@ -278,25 +278,29 @@ func (app *application) voteForReview(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (app *application) listTopFiveMovieReviewsHandler(w http.ResponseWriter, r *http.Request) {
-	v := validator.New()
-	filters := filters.ParseReviewFiltersFromQuery(r.URL.Query(), v)
-
-	filters.ValidateReviewFilters(v, filters)
-	if !v.Valid() {
-		app.failedValidationResponse(w, r, v.Errors)
+// @Summary      Get top 5 reviews for a movie
+// @Description  Returns top 5 reviews for a movie with the highest upvotes
+// @Tags         Reviews
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id   path      int  true  "Movie ID"
+// @Success      200  {object}  map[string]interface{}  "reviews: []ReviewWithUser"
+// @Failure      400  {object}  ErrorResponse
+// @Failure      404  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /v1/movies/{id}/reviews/top [get]
+func (app *application) listMovieTopReviewsHandler(w http.ResponseWriter, r *http.Request) {
+	movieID, err := app.readIDParam(r)
+	if err != nil {
+		app.notFoundResponse(w, r)
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
 
-	var userID int64
-	if user := app.contextGetUser(r); user != nil {
-		userID = user.ID
-	}
-
-	reviews, total_records, err := app.models.Reviews.GetFiltered(ctx, userID, filters)
+	reviews, err := app.models.Reviews.GetTopMovieReviews(ctx, movieID, 5)
 	if err != nil {
 		switch {
 		case errors.Is(err, data.ErrRecordNotFound):
@@ -307,10 +311,81 @@ func (app *application) listTopFiveMovieReviewsHandler(w http.ResponseWriter, r 
 		return
 	}
 
-	metadata := calculateMetadata(total_records, filters.Page, filters.PageSize)
-
-	err = app.writeJSON(w, http.StatusOK, envelope{"reviews": reviews, "metadata": metadata}, nil)
+	err = app.writeJSON(w, http.StatusOK, envelope{"reviews": reviews}, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 	}
+}
+
+// @Summary      Update a review
+// @Description  Updates the text and/or rating of a review with the specified ID.
+// @Tags         Reviews
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id     path      int     true  "Review ID"
+// @Param        review body      data.Review  true  "Updated review data"
+// @Success      200    {object}  data.Review
+// @Failure      400    {object}  ErrorResponse
+// @Failure      404    {object}  ErrorResponse
+// @Failure      500    {object}  ErrorResponse
+// @Router       /v1/reviews/{id} [patch]
+func (app *application) updateReviewHandler(w http.ResponseWriter, r *http.Request) {
+
+	reviewID, err := app.readIDParam(r)
+	if err != nil {
+		app.notFoundResponse(w, r)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+	defer cancel()
+
+	ReviewWithUser, err := app.models.Reviews.Get(ctx, reviewID, nil)
+	if err != nil {
+		app.serverErrorResponse(w, r, err)
+		return
+	}
+
+	var input struct {
+		Text   *string `json:"text"`
+		Rating *uint8  `json:"rating"`
+	}
+
+	err = app.readJSON(w, r, &input)
+	if err != nil {
+		app.badRequestResponse(w, r, err)
+		return
+	}
+
+	if input.Text == nil && input.Rating == nil {
+		app.badRequestResponse(w, r, errors.New("no fields to update"))
+		return
+	}
+
+	review := ReviewWithUser.Review
+	if input.Text != nil {
+		review.Text = *input.Text
+	}
+	if input.Rating != nil {
+		review.Rating = *input.Rating
+	}
+
+	v := validator.New()
+	if data.ValidateReview(v, &review); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	err = app.models.Reviews.Update(ctx, reviewID, &review)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			app.notFoundResponse(w, r)
+		default:
+			app.serverErrorResponse(w, r, err)
+		}
+		return
+	}
+
 }

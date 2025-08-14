@@ -12,42 +12,24 @@ import (
 
 type Review struct {
 	ID        int64     `json:"id"`
-	UserName  string    `json:"user_name"`
+	UserID    int64     `json:"user_id"`
+	MovieID   int64     `json:"movie_id"`
 	Text      string    `json:"text"`
 	Rating    uint8     `json:"rating"`
-	Upvotes   int32     `json:"upvotes,omitempty"`
-	Downvotes int32     `json:"downvotes,omitempty"`
-	CreatedAt time.Time `json:"-"`
-	Edited    bool      `json:"edited,omitempty"`
-	MovieID   int64     `json:"movie_id"`
-	UserID    int64     `json:"user_id"`
+	Upvotes   int32     `json:"upvotes"`
+	Downvotes int32     `json:"downvotes"`
+	Edited    bool      `json:"edited"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
-type ReviewInput struct {
-	ID       int64  `json:"id,omitempty"`
-	Text     string `json:"text"`
-	Rating   uint8  `json:"rating"`
-	UserName string `json:"user_name"`
-	Edited   bool   `json:"edited,omitempty"`
-	MovieID  int64  `json:"movie_id"`
-	UserID   int64  `json:"user_id"`
+type ReviewWithUser struct {
+	Review
+	UserName   string `json:"user_name"`
+	TotalVotes int32  `json:"total_votes"`
+	CurrentUserVote   int    `json:"user_vote,omitempty"`
 }
 
-type ReviewResponse struct {
-	ID         int64     `json:"id"`
-	UserID     int64     `json:"user_id"`
-	Text       string    `json:"text"`
-	UserName   string    `json:"user_name"`
-	Upvotes    int32     `json:"upvotes"`
-	Downvotes  int32     `json:"downvotes"`
-	TotalVotes int32     `json:"total_votes"`
-	Rating     uint8     `json:"rating"`
-	UserVote   VoteType  `json:"user_vote,omitempty"`
-	Edited     bool      `json:"edited"`
-	CreatedAt  time.Time `json:"created_at"`
-}
-
-func ValidateReview(v *validator.Validator, review *ReviewInput) {
+func ValidateReview(v *validator.Validator, review *Review) {
 	v.Check(review.Text != "", "text", "must be provided")
 	v.Check(len(review.Text) >= 10, "text", "must be at least 10 characters long")
 	v.Check(len(review.Text) <= 500, "text", "must be less than 500 characters long")
@@ -62,66 +44,59 @@ type ReviewModel struct {
 	DB *sql.DB
 }
 
-func (r ReviewModel) UserAlreadyReviewed(ctx context.Context, userID, movieID int64) (bool, error) {
-	var exists bool
-	query := `SELECT EXISTS(SELECT 1 FROM reviews WHERE user_id = $1 AND movie_id = $2)`
-	err := r.DB.QueryRowContext(ctx, query, userID, movieID).Scan(&exists)
-	return exists, err
-}
-
-func (r ReviewModel) Insert(review *ReviewInput) error {
+func (r ReviewModel) Insert(review *Review) error {
 	query := `
-		INSERT INTO reviews (text, rating, user_name, edited, movie_id, user_id)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id`
+		INSERT INTO reviews (user_id, movie_id, text, rating, edited)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, created_at`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	args := []any{review.Text, review.Rating, review.UserName, review.Edited, review.MovieID, review.UserID}
-
-	return r.DB.QueryRowContext(ctx, query, args...).Scan(&review.ID)
+	return r.DB.QueryRowContext(ctx, query,
+		review.UserID,
+		review.MovieID,
+		review.Text,
+		review.Rating,
+		review.Edited,
+	).Scan(&review.ID, &review.CreatedAt)
 }
-func (r ReviewModel) Get(ctx context.Context, reviewID int64, userID *int64) (*ReviewResponse, error) {
-	if reviewID < 1 {
-		return nil, ErrRecordNotFound
-	}
 
-	query := `
-        SELECT r.id, r.user_id, r.user_name, r.text, r.edited,
-		 r.rating, r.upvotes, r.downvotes, r.created_at,
-         %s as user_vote
-        FROM reviews r
-        %s
-        WHERE r.id = $1`
-
-	args := []any{reviewID}
-	var joinStr string
-	var voteColumn string
+func (r ReviewModel) Get(ctx context.Context, id int64, userID *int64) (*ReviewWithUser, error) {
+	var userVoteJoin string
+	var args []interface{}
+	args = append(args, id)
 
 	if userID != nil {
-		joinStr = "LEFT JOIN review_votes rv ON r.id = rv.review_id AND rv.user_id = $2"
-		voteColumn = "COALESCE(rv.vote_type, 0)"
+		userVoteJoin = `LEFT JOIN review_vote rv ON rv.review_id = r.id AND rv.user_id = $2`
 		args = append(args, *userID)
-	} else {
-		voteColumn = "0"
-		joinStr = ""
 	}
 
-	query = fmt.Sprintf(query, voteColumn, joinStr)
+	query := fmt.Sprintf(`
+		SELECT r.id, r.user_id, r.movie_id, r.text, r.rating,
+		       r.upvotes, r.downvotes, r.created_at, r.edited,
+		       u.name AS user_name,
+		       (r.upvotes - r.downvotes) AS total_votes,
+		       COALESCE(rv.vote_type, 0) AS user_vote
+		FROM reviews r
+		JOIN users u ON r.user_id = u.id
+		%s
+		WHERE r.id = $1`, userVoteJoin)
 
-	var review ReviewResponse
+	var review ReviewWithUser
 	err := r.DB.QueryRowContext(ctx, query, args...).Scan(
 		&review.ID,
 		&review.UserID,
-		&review.UserName,
+		&review.MovieID,
 		&review.Text,
-		&review.Edited,
 		&review.Rating,
 		&review.Upvotes,
 		&review.Downvotes,
 		&review.CreatedAt,
-		&review.UserVote,
+		&review.Edited,
+		&review.UserName,
+		&review.TotalVotes,
+		&review.CurrentUserVote,
 	)
 
 	if err != nil {
@@ -134,7 +109,7 @@ func (r ReviewModel) Get(ctx context.Context, reviewID int64, userID *int64) (*R
 	return &review, nil
 }
 
-func (r ReviewModel) GetFiltered(ctx context.Context, currentUserID int64, rf filters.ReviewFilters) ([]*ReviewResponse, int, error) {
+func (r ReviewModel) GetFiltered(ctx context.Context, currentUserID int64, rf filters.ReviewFilters) ([]*ReviewWithUser, int, error) {
 	query, args := filters.NewReviewQueryBuilder().Build(rf, currentUserID)
 
 	rows, err := r.DB.QueryContext(ctx, query, args...)
@@ -143,29 +118,29 @@ func (r ReviewModel) GetFiltered(ctx context.Context, currentUserID int64, rf fi
 	}
 	defer rows.Close()
 
-	var reviews []*ReviewResponse
+	var reviews []*ReviewWithUser
 	var totalRecords int
 
 	for rows.Next() {
-		var review ReviewResponse
-
+		var review ReviewWithUser
 		err := rows.Scan(
 			&totalRecords,
 			&review.ID,
-			&review.UserName,
+			&review.UserID,
+			&review.MovieID,
 			&review.Text,
 			&review.Rating,
 			&review.CreatedAt,
 			&review.Upvotes,
 			&review.Downvotes,
 			&review.Edited,
+			&review.UserName,
 			&review.TotalVotes,
-			&review.UserVote,
+			&review.CurrentUserVote,
 		)
 		if err != nil {
 			return nil, 0, err
 		}
-
 		reviews = append(reviews, &review)
 	}
 
@@ -176,14 +151,14 @@ func (r ReviewModel) GetFiltered(ctx context.Context, currentUserID int64, rf fi
 	return reviews, totalRecords, nil
 }
 
-func (r ReviewModel) GetByUserID(ctx context.Context, userID int64) (*[]ReviewResponse, error) {
+func (r ReviewModel) GetByUserID(ctx context.Context, userID int64) ([]Review, error) {
 	if userID < 1 {
 		return nil, ErrRecordNotFound
 	}
 
 	query := `
-		SELECT id, user_name, text, rating, created_at, upvotes, edited
-		FROM review
+		SELECT id, user_id, movie_id, text, rating, upvotes, downvotes, edited, created_at
+		FROM reviews
 		WHERE user_id = $1
 		ORDER BY created_at DESC`
 
@@ -193,10 +168,13 @@ func (r ReviewModel) GetByUserID(ctx context.Context, userID int64) (*[]ReviewRe
 	}
 	defer rows.Close()
 
-	var reviews []ReviewResponse
+	var reviews []Review
 	for rows.Next() {
-		var r ReviewResponse
-		if err := rows.Scan(&r.ID, &r.Text, &r.UserName, &r.Rating, &r.CreatedAt, &r.Upvotes, &r.Edited); err != nil {
+		var r Review
+		if err := rows.Scan(
+			&r.ID, &r.UserID, &r.MovieID, &r.Text, &r.Rating,
+			&r.Upvotes, &r.Downvotes, &r.Edited, &r.CreatedAt,
+		); err != nil {
 			return nil, err
 		}
 		reviews = append(reviews, r)
@@ -211,20 +189,19 @@ func (r ReviewModel) GetByUserID(ctx context.Context, userID int64) (*[]ReviewRe
 		}
 	}
 
-	return &reviews, nil
+	return reviews, nil
 }
 
-func (r ReviewModel) GetTopMovieReviews(ctx context.Context, movieID int64, limit int) ([]*ReviewResponse, error) {
+func (r ReviewModel) GetTopMovieReviews(ctx context.Context, movieID int64, limit int) ([]*ReviewWithUser, error) {
 	query := `
-		SELECT id,
-		       user_name,
-		       LEFT(text, 300) AS text,
-		       rating,
-		       upvotes,
-		       created_at
-		FROM reviews 
-		WHERE movie_id = $1 AND upvotes > 0
-		ORDER BY upvotes DESC
+		SELECT r.id, r.user_id, r.movie_id, LEFT(r.text, 300) AS text,
+		       r.rating, r.upvotes, r.downvotes, r.created_at, r.edited,
+		       u.name AS user_name,
+		       (r.upvotes - r.downvotes) AS total_votes
+		FROM reviews r
+		JOIN users u ON r.user_id = u.id
+		WHERE r.movie_id = $1 AND r.upvotes > 0
+		ORDER BY r.upvotes DESC
 		LIMIT $2
 	`
 
@@ -234,16 +211,13 @@ func (r ReviewModel) GetTopMovieReviews(ctx context.Context, movieID int64, limi
 	}
 	defer rows.Close()
 
-	var reviews []*ReviewResponse
+	var reviews []*ReviewWithUser
 	for rows.Next() {
-		var review ReviewResponse
+		var review ReviewWithUser
 		err := rows.Scan(
-			&review.ID,
-			&review.UserName,
-			&review.Text,
-			&review.Rating,
-			&review.Upvotes,
-			&review.CreatedAt,
+			&review.ID, &review.UserID, &review.MovieID, &review.Text,
+			&review.Rating, &review.Upvotes, &review.Downvotes,
+			&review.CreatedAt, &review.Edited, &review.UserName, &review.TotalVotes,
 		)
 		if err != nil {
 			return nil, err
@@ -257,19 +231,16 @@ func (r ReviewModel) GetTopMovieReviews(ctx context.Context, movieID int64, limi
 func (r ReviewModel) Update(ctx context.Context, reviewID int64, review *Review) error {
 	query := `
 		UPDATE reviews
-		SET text = $1, user_name = $2, rating = $3, upvotes = $4, edited = $5, movie_id = $6, user_id = $7
+		SET text = $1, movie_id  = $2, user_id = $3, upvotes = $4,, rating = $5, edited = true
 		WHERE id = $8
 		RETURNING id, created_at`
 
 	args := []any{
 		review.Text,
-		review.UserName,
-		review.Rating,
-		review.Upvotes,
-		review.Edited,
 		review.MovieID,
 		review.UserID,
-		reviewID,
+		review.Upvotes,
+		review.Rating,
 	}
 
 	err := r.DB.QueryRowContext(ctx, query, args...).Scan(&review.ID, &review.CreatedAt)
@@ -298,7 +269,6 @@ func (r ReviewModel) Delete(ctx context.Context, id int64) error {
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
 		return err
-
 	}
 
 	if rowsAffected == 0 {
