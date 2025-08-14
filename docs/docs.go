@@ -828,32 +828,26 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Filter by review title",
-                        "name": "title",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter by review rating (0-5)",
+                        "description": "Sort by rating (presence of parameter enables sorting)",
                         "name": "rating",
                         "in": "query"
                     },
                     {
-                        "type": "integer",
-                        "description": "Filter by minimum upvotes",
-                        "name": "min_upvotes",
+                        "type": "string",
+                        "description": "Sort by upvotes (presence of parameter enables sorting)",
+                        "name": "upvotes",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Filter by date from in ISO 8601 format (e.g. 2020-01-01)",
-                        "name": "date_from",
+                        "description": "Sort by date (presence of parameter enables sorting)",
+                        "name": "date",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Filter by date to in ISO 8601 format (e.g. 2020-01-01)",
-                        "name": "date_to",
+                        "description": "Sort in descending order (presence of parameter enables DESC)",
+                        "name": "desc",
                         "in": "query"
                     },
                     {
@@ -867,17 +861,67 @@ const docTemplate = `{
                         "description": "Page size (default is 20)",
                         "name": "page_size",
                         "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Sort by field (id, title, rating, upvotes, downvotes, created_at)",
-                        "name": "sort",
-                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "reviews: []Review, metadata: Metadata",
+                        "description": "reviews: []ReviewWithUser, metadata: Metadata",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/movies/{id}/reviews/top": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns top 5 reviews for a movie with the highest upvotes",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reviews"
+                ],
+                "summary": "Get top 5 reviews for a movie",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Movie ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "reviews: []ReviewWithUser",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -929,7 +973,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/data.ReviewInput"
+                            "$ref": "#/definitions/data.Review"
                         }
                     }
                 ],
@@ -937,7 +981,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/data.ReviewInput"
+                            "$ref": "#/definitions/data.Review"
                         }
                     },
                     "400": {
@@ -980,6 +1024,68 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/data.Review"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates the text and/or rating of a review with the specified ID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reviews"
+                ],
+                "summary": "Update a review",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Review ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated review data",
+                        "name": "review",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/data.Review"
+                        }
                     }
                 ],
                 "responses": {
@@ -1397,6 +1503,98 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/v1/users/{id}/reviews": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a filtered list of reviews by a user with optional sorting and pagination",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reviews"
+                ],
+                "summary": "List reviews by a specific user",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort by rating",
+                        "name": "rating",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort by upvotes",
+                        "name": "upvotes",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort by date",
+                        "name": "date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Sort in descending order",
+                        "name": "desc",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number (default is 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (default is 20)",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "reviews: []Reviews, metadata: Metadata",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/main.ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -1499,6 +1697,9 @@ const docTemplate = `{
         "data.Review": {
             "type": "object",
             "properties": {
+                "created_at": {
+                    "type": "string"
+                },
                 "downvotes": {
                     "type": "integer"
                 },
@@ -1522,35 +1723,6 @@ const docTemplate = `{
                 },
                 "user_id": {
                     "type": "integer"
-                },
-                "user_name": {
-                    "type": "string"
-                }
-            }
-        },
-        "data.ReviewInput": {
-            "type": "object",
-            "properties": {
-                "edited": {
-                    "type": "boolean"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "movie_id": {
-                    "type": "integer"
-                },
-                "rating": {
-                    "type": "integer"
-                },
-                "text": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "integer"
-                },
-                "user_name": {
-                    "type": "string"
                 }
             }
         },

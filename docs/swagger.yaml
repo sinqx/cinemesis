@@ -64,6 +64,8 @@ definitions:
     type: object
   data.Review:
     properties:
+      created_at:
+        type: string
       downvotes:
         type: integer
       edited:
@@ -80,25 +82,6 @@ definitions:
         type: integer
       user_id:
         type: integer
-      user_name:
-        type: string
-    type: object
-  data.ReviewInput:
-    properties:
-      edited:
-        type: boolean
-      id:
-        type: integer
-      movie_id:
-        type: integer
-      rating:
-        type: integer
-      text:
-        type: string
-      user_id:
-        type: integer
-      user_name:
-        type: string
     type: object
   data.Token:
     properties:
@@ -662,25 +645,21 @@ paths:
         name: id
         required: true
         type: integer
-      - description: Filter by review title
-        in: query
-        name: title
-        type: string
-      - description: Filter by review rating (0-5)
+      - description: Sort by rating (presence of parameter enables sorting)
         in: query
         name: rating
         type: string
-      - description: Filter by minimum upvotes
+      - description: Sort by upvotes (presence of parameter enables sorting)
         in: query
-        name: min_upvotes
-        type: integer
-      - description: Filter by date from in ISO 8601 format (e.g. 2020-01-01)
-        in: query
-        name: date_from
+        name: upvotes
         type: string
-      - description: Filter by date to in ISO 8601 format (e.g. 2020-01-01)
+      - description: Sort by date (presence of parameter enables sorting)
         in: query
-        name: date_to
+        name: date
+        type: string
+      - description: Sort in descending order (presence of parameter enables DESC)
+        in: query
+        name: desc
         type: string
       - description: Page number (default is 1)
         in: query
@@ -690,15 +669,11 @@ paths:
         in: query
         name: page_size
         type: integer
-      - description: Sort by field (id, title, rating, upvotes, downvotes, created_at)
-        in: query
-        name: sort
-        type: string
       produces:
       - application/json
       responses:
         "200":
-          description: 'reviews: []Review, metadata: Metadata'
+          description: 'reviews: []ReviewWithUser, metadata: Metadata'
           schema:
             additionalProperties: true
             type: object
@@ -719,6 +694,42 @@ paths:
       summary: List reviews for a specific movie
       tags:
       - Reviews
+  /v1/movies/{id}/reviews/top:
+    get:
+      consumes:
+      - application/json
+      description: Returns top 5 reviews for a movie with the highest upvotes
+      parameters:
+      - description: Movie ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'reviews: []ReviewWithUser'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get top 5 reviews for a movie
+      tags:
+      - Reviews
   /v1/reviews:
     post:
       consumes:
@@ -730,14 +741,14 @@ paths:
         name: review
         required: true
         schema:
-          $ref: '#/definitions/data.ReviewInput'
+          $ref: '#/definitions/data.Review'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/data.ReviewInput'
+            $ref: '#/definitions/data.Review'
         "400":
           description: Bad Request
           schema:
@@ -784,6 +795,46 @@ paths:
       security:
       - BearerAuth: []
       summary: Show a review
+      tags:
+      - Reviews
+    patch:
+      consumes:
+      - application/json
+      description: Updates the text and/or rating of a review with the specified ID.
+      parameters:
+      - description: Review ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Updated review data
+        in: body
+        name: review
+        required: true
+        schema:
+          $ref: '#/definitions/data.Review'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/data.Review'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update a review
       tags:
       - Reviews
   /v1/reviews/{id}/vote:
@@ -969,6 +1020,67 @@ paths:
       summary: Register a new user
       tags:
       - Users
+  /v1/users/{id}/reviews:
+    get:
+      consumes:
+      - application/json
+      description: Returns a filtered list of reviews by a user with optional sorting
+        and pagination
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Sort by rating
+        in: query
+        name: rating
+        type: string
+      - description: Sort by upvotes
+        in: query
+        name: upvotes
+        type: string
+      - description: Sort by date
+        in: query
+        name: date
+        type: string
+      - description: Sort in descending order
+        in: query
+        name: desc
+        type: string
+      - description: Page number (default is 1)
+        in: query
+        name: page
+        type: integer
+      - description: Page size (default is 20)
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'reviews: []Reviews, metadata: Metadata'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List reviews by a specific user
+      tags:
+      - Reviews
   /v1/users/activated:
     put:
       consumes:
