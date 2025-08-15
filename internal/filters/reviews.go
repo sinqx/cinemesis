@@ -56,7 +56,7 @@ func (qb *QueryBuilder) BuildReviewQuery(filters ReviewFilters, currentUserID in
 	if currentUserID > 0 {
 		qb.argCount++
 		joinUserVote = fmt.Sprintf(`
-			LEFT JOIN review_vote rv
+			LEFT JOIN review_votes rv
 				ON rv.review_id = r.id AND rv.user_id = $%d
 		`, qb.argCount)
 		qb.args = append(qb.args, currentUserID)
@@ -76,7 +76,7 @@ func (qb *QueryBuilder) BuildReviewQuery(filters ReviewFilters, currentUserID in
 		       u.name AS user_name,
 		       (r.upvotes + r.downvotes) AS total_votes,
 		       COALESCE(rv.vote_type, 0) AS user_vote
-		FROM review r
+		FROM reviews r
 		JOIN users u ON r.user_id = u.id
 		%s
 		%s
@@ -114,6 +114,11 @@ func NewReviewFilters() ReviewFilters {
 		PageFilters: PageFilters{
 			Page:     DefaultPage,
 			PageSize: DefaultPageSize,
+			SortSafelist: []string{
+				SortByDate,
+				SortByRating,
+				SortByUpvotes,
+			},
 		},
 		SortBy:    SortByDate,
 		SortOrder: SortOrderAsc,
@@ -135,6 +140,8 @@ func ParseReviewFiltersFromQuery(qs url.Values, v *validator.Validator) ReviewFi
 	} else {
 		filters.SortBy = SortByDate
 	}
+
+	filters.Sort = filters.SortBy
 
 	if qs.Has("desc") {
 		filters.SortOrder = SortOrderDesc
