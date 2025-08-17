@@ -76,7 +76,7 @@ func NewMovieFilters() MovieFilters {
 		PageFilters: PageFilters{
 			Page:     1,
 			PageSize: 20,
-			Sort:     "-created_at",
+			Sort:     "year",
 			SortSafelist: []string{
 				"id", "title", "year", "runtime",
 				"-id", "-title", "-year", "-runtime",
