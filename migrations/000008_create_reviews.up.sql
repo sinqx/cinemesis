@@ -1,6 +1,5 @@
 CREATE TABLE reviews (
     id          SERIAL PRIMARY KEY,
-    user_name   TEXT NOT NULL,
     text        TEXT NOT NULL,
     rating      SMALLINT NOT NULL CHECK (rating >= 0 AND rating <= 10),
     upvotes     INTEGER NOT NULL DEFAULT 0,

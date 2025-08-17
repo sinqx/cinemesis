@@ -24,9 +24,9 @@ type Review struct {
 
 type ReviewWithUser struct {
 	Review
-	UserName   string `json:"user_name"`
-	TotalVotes int32  `json:"total_votes"`
-	CurrentUserVote   int    `json:"user_vote,omitempty"`
+	UserName        string `json:"user_name"`
+	TotalVotes      int32  `json:"total_votes"`
+	CurrentUserVote int    `json:"user_vote,omitempty"`
 }
 
 func ValidateReview(v *validator.Validator, review *Review) {
