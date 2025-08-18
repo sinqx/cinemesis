@@ -231,8 +231,8 @@ func (r ReviewModel) GetTopMovieReviews(ctx context.Context, movieID int64, limi
 func (r ReviewModel) Update(ctx context.Context, reviewID int64, review *Review) error {
 	query := `
 		UPDATE reviews
-		SET text = $1, movie_id  = $2, user_id = $3, upvotes = $4,, rating = $5, edited = true
-		WHERE id = $8
+		SET text = $1, movie_id  = $2, user_id = $3, upvotes = $4, rating = $5, edited = true
+		WHERE id = $6
 		RETURNING id, created_at`
 
 	args := []any{
@@ -241,6 +241,7 @@ func (r ReviewModel) Update(ctx context.Context, reviewID int64, review *Review)
 		review.UserID,
 		review.Upvotes,
 		review.Rating,
+		reviewID,
 	}
 
 	err := r.DB.QueryRowContext(ctx, query, args...).Scan(&review.ID, &review.CreatedAt)
