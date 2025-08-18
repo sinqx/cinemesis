@@ -145,7 +145,7 @@ func (app *application) addGenresToMovieHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	tx, err := app.models.Movies.DB.BeginTx(ctx, nil)
+	tx, err := app.models.Genres.DB.BeginTx(ctx, nil)
 	if err != nil {
 		app.serverErrorResponse(w, r, err)
 		return

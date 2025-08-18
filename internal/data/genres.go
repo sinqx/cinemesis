@@ -204,6 +204,10 @@ func (g GenreModel) Get(ctx context.Context, id int64) (*Genre, error) {
 }
 
 func (g GenreModel) GetIDsByNames(ctx context.Context, genreNames []string) ([]int64, error) {
+	if len(genreNames) == 0 {
+		return []int64{}, nil
+	}
+
 	const query = "SELECT id FROM genres WHERE name = ANY($1)"
 	rows, err := g.DB.QueryContext(ctx, query, pq.Array(genreNames))
 	if err != nil {
