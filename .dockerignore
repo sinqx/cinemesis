@@ -1,0 +1,7 @@
+.git
+*.log
+tmp/
+bin/
+vendor/
+.vscode
+.trunk

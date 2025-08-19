@@ -15,6 +15,6 @@ CREATE TABLE reviews (
 CREATE TABLE review_votes (
     review_id  BIGINT NOT NULL REFERENCES reviews(id) ON DELETE CASCADE,
     user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    vote       SMALLINT NOT DEFAULT 0 CHECK (vote IN (-1, 0, 1)),
+    vote       SMALLINT NOT NULL DEFAULT 0 CHECK (vote IN (-1, 0, 1)),
     PRIMARY KEY (review_id, user_id)
 );

@@ -80,6 +80,7 @@ type application struct {
 func main() {
 	_ = godotenv.Load(".env")
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	logger.Info("Starting Cinemesis API", "version", version)
 
 	var cfg config
 	// Server

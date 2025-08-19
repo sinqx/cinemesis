@@ -87,3 +87,58 @@ audit:
 	go tool staticcheck ./...
 	@echo Running tests...
 	go test -race -vet=off ./...
+
+
+# Existing Makefile content...
+
+# ==================================================================================== #
+# DOCKER
+# ==================================================================================== #
+
+## rebuild: rebuild the Docker containers without cache
+.PHONY: docker/rebuild
+docker/rebuild:
+	docker-compose down
+	docker-compose build --no-cache
+	docker-compose up -d
+
+## docker/build: build the Docker image
+.PHONY: docker/build
+docker/build:
+	@echo 'Building Docker image...'
+	docker-compose build
+
+## docker/restart-api: restart the API container
+.PHONY: docker/restart-api
+docker/restart-api:
+	docker-compose restart api
+
+## docker/up: start the Docker containers
+.PHONY: docker/up
+docker/up:
+	@echo 'Starting Docker containers...'
+	docker-compose up -d
+
+## docker/down: stop the Docker containers
+.PHONY: docker/down
+docker/down:
+	@echo 'Stopping Docker containers...'
+	docker-compose down
+
+## docker/logs: view Docker logs
+.PHONY: docker/logs
+docker/logs:
+	@echo 'Viewing Docker logs...'
+	docker-compose logs -f
+
+## docker/db/migrations/up: apply migrations in Docker
+.PHONY: docker/db/migrations/up
+docker/db/migrations/up:
+	@echo 'Running migrations in Docker...'
+	docker-compose exec api migrate -path /app/migrations -database ${DOCKER_POSTGRESQL_CONN} up
+
+## docker/db/migrations/down: apply migrations in Docker
+.PHONY: docker/db/migrations/down
+docker/db/migrations/down:
+	@echo 'Running migrations down in Docker...'
+	docker-compose exec api migrate -path /app/migrations -database ${DOCKER_POSTGRESQL_CONN} down 1
